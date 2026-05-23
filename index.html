@@ -84,6 +84,7 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 .editor-textarea::placeholder{color:var(--tx3);font-family:var(--font);font-size:14px}
 .editor-wrap{flex:1;overflow:auto;padding:36px 32px}
 #editorWrap{position:relative}
+#colEditor textarea{border:none;outline:none;resize:none;background:transparent;font-family:Georgia,serif;font-size:15px;line-height:2;color:var(--tx);caret-color:var(--green);padding:0;width:100%;overflow:hidden}
 .editor-footer{padding:5px 48px;border-top:0.5px solid var(--bd);font-size:11px;color:var(--tx3);display:flex;gap:16px;flex-shrink:0;background:var(--bg)}
 
 /* ── source pane ── */
@@ -199,9 +200,9 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
 
     <!-- editor -->
     <div class="editor-pane">
-      <div class="editor-wrap" id="editorWrap">
+      <div class="editor-wrap" id="editorWrap" style="position:relative">
         <textarea class="editor-textarea" id="editor" placeholder="原稿をここに入力..."></textarea>
-        <div id="colDisplay" style="display:none;width:100%;height:100%;font-family:Georgia,serif;font-size:15px;line-height:2;color:var(--tx);white-space:pre-wrap;word-break:break-all;pointer-events:none;position:absolute;top:0;left:0;padding:36px 32px"></div>
+        <div id="colEditor" style="display:none;width:100%;height:100%;position:absolute;top:0;left:0;overflow:auto;padding:36px 32px;gap:32px;align-items:flex-start;outline:none" onclick="colEditorClick(event)"></div>
       </div>
       <div class="editor-footer">
         <div style="display:flex;align-items:center;gap:10px;flex:1">
@@ -317,7 +318,6 @@ function save(silent){
 function autoSave(){
   const art=getCurrentArticle();
   if(art){art.text=document.getElementById('editor').value;updateFooter();}
-  if(currentColWidth<=24)applyColumnLayout();
   try{localStorage.setItem(SK,JSON.stringify(state));}catch(e){}
 }
 function saveArticle(){save(false);}
@@ -465,7 +465,9 @@ function renderEditor(){
   const art=getCurrentArticle();
   document.getElementById('editor').value=art?art.text:'';
   updateFooter();
-  setTimeout(applyColumnLayout,30);
+  setTimeout(()=>{
+    applyColumnLayout();
+  },30);
 }
 let currentColWidth=48;
 
@@ -478,50 +480,57 @@ function updateColWidth(val){
 
 function applyColumnLayout(){
   const ta = document.getElementById('editor');
+  const colEd = document.getElementById('colEditor');
   const wrap = document.getElementById('editorWrap');
-  const disp = document.getElementById('colDisplay');
-  if(!ta||!wrap||!disp) return;
+  if(!ta||!colEd||!wrap) return;
 
   if(currentColWidth > 24){
-    // Single column mode: show textarea normally
+    // Single column: use textarea
     ta.style.display = '';
-    ta.style.width = '100%';
-    ta.style.height = '100%';
     ta.style.position = '';
     ta.style.opacity = '';
-    disp.style.display = 'none';
+    ta.style.width = '100%';
+    ta.style.height = '100%';
+    ta.style.minHeight = '400px';
+    colEd.style.display = 'none';
     return;
   }
 
-  // Multi-column mode
-  // Measure one character width
+  // Measure column width in px
   const sp = document.createElement('span');
   sp.style.cssText = 'position:absolute;visibility:hidden;font-family:Georgia,serif;font-size:15px;white-space:pre';
   sp.textContent = 'あ'.repeat(currentColWidth);
   document.body.appendChild(sp);
-  const colW = sp.offsetWidth;
+  const colPx = sp.offsetWidth;
   document.body.removeChild(sp);
 
-  const wrapH = wrap.clientHeight || window.innerHeight - 140;
   const wrapW = wrap.clientWidth - 64;
-  const numCols = Math.max(1, Math.floor((wrapW + 32) / (colW + 32)));
+  const numCols = Math.max(1, Math.floor((wrapW + 32) / (colPx + 32)));
 
   if(numCols <= 1){
     ta.style.display = '';
-    ta.style.width = '100%';
-    ta.style.height = '100%';
     ta.style.position = '';
     ta.style.opacity = '';
-    disp.style.display = 'none';
+    colEd.style.display = 'none';
     return;
   }
 
-  // Split text into lines, then distribute top-to-bottom into columns
+  // Hide textarea, show column editor
+  ta.style.display = 'none';
+  colEd.style.display = 'flex';
+
+  renderColEditor(colPx, numCols);
+}
+
+function renderColEditor(colPx, numCols){
+  const ta = document.getElementById('editor');
+  const colEd = document.getElementById('colEditor');
   const text = ta.value;
+
+  // Split text into lines respecting currentColWidth
   const lines = [];
   text.split('\n').forEach(line => {
-    if(line === ''){lines.push(''); return;}
-    // wrap long lines
+    if(line === ''){ lines.push(''); return; }
     let i = 0;
     while(i < line.length){
       lines.push(line.slice(i, i + currentColWidth));
@@ -530,30 +539,62 @@ function applyColumnLayout(){
   });
 
   const linesPerCol = Math.ceil(lines.length / numCols) || 1;
-  const cols = [];
+
+  // Build column textareas - each column is a real editable textarea
+  colEd.innerHTML = '';
   for(let c = 0; c < numCols; c++){
-    cols.push(lines.slice(c * linesPerCol, (c+1) * linesPerCol).join('\n'));
+    const colLines = lines.slice(c * linesPerCol, (c+1) * linesPerCol);
+    const colText = colLines.join('\n');
+    const colDiv = document.createElement('div');
+    colDiv.style.cssText = `width:${colPx}px;flex-shrink:0;`;
+    const colTa = document.createElement('textarea');
+    colTa.style.cssText = `border:none;outline:none;resize:none;background:transparent;font-family:Georgia,serif;font-size:15px;line-height:2;color:var(--tx);caret-color:var(--green);padding:0;width:${colPx}px;overflow:hidden;min-height:${linesPerCol*2*15*1.2}px`;
+    colTa.value = colText;
+    colTa.dataset.col = c;
+    colTa.addEventListener('input', onColInput);
+    colTa.addEventListener('click', e => e.stopPropagation());
+    colTa.addEventListener('keydown', onColKeydown);
+    colDiv.appendChild(colTa);
+    colEd.appendChild(colDiv);
   }
-
-  // Render columns as side-by-side divs
-  disp.style.display = 'flex';
-  disp.style.gap = '32px';
-  disp.style.alignItems = 'flex-start';
-  disp.style.padding = '36px 32px';
-  disp.innerHTML = cols.map(col =>
-    `<div style="width:${colW}px;flex-shrink:0;white-space:pre-wrap;word-break:break-all;line-height:2">${escHtml(col)}</div>`
-  ).join('');
-
-  // Hide textarea but keep it focusable
-  ta.style.position = 'absolute';
-  ta.style.opacity = '0';
-  ta.style.width = '100%';
-  ta.style.height = '100%';
-  ta.style.top = '0';
-  ta.style.left = '0';
-  ta.style.zIndex = '1';
-  ta.style.cursor = 'text';
 }
+
+function onColInput(e){
+  // Sync all column textareas back to main textarea
+  syncColsToMain();
+  updateFooter();
+  const art = getCurrentArticle();
+  if(art) art.text = document.getElementById('editor').value;
+  try{localStorage.setItem(SK, JSON.stringify(state));}catch(err){}
+}
+
+function onColKeydown(e){
+  // Handle Enter: allow normal behavior, then re-render
+  if(e.key === 'Enter' || e.key === 'Backspace' || e.key === 'Delete'){
+    setTimeout(() => {
+      syncColsToMain();
+      applyColumnLayout();
+    }, 0);
+  }
+}
+
+function syncColsToMain(){
+  const colEd = document.getElementById('colEditor');
+  const ta = document.getElementById('editor');
+  const colTas = colEd.querySelectorAll('textarea');
+  const parts = [];
+  colTas.forEach(ct => parts.push(ct.value));
+  // Join columns: re-merge wrapped lines
+  const merged = parts.join('\n');
+  ta.value = merged;
+}
+
+function colEditorClick(e){
+  // Focus first textarea if clicking empty space
+  const first = document.querySelector('#colEditor textarea');
+  if(first) first.focus();
+}
+
 
 function escHtml(s){
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -581,6 +622,13 @@ function updateFooter(){
   }
 }
 function getParaAtCursor(){
+  // In col mode, find which col textarea is focused
+  if(currentColWidth <= 24){
+    const focused = document.activeElement;
+    if(focused && focused.dataset && focused.dataset.col !== undefined){
+      syncColsToMain();
+    }
+  }
   const ta=document.getElementById('editor');
   const pos=ta.selectionStart;
   const lines=ta.value.substring(0,pos).split('\n');
