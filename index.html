@@ -64,6 +64,9 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 .status-review{background:var(--abg);color:var(--atx)}
 .status-done{background:var(--gbg);color:var(--gtx)}
 .status-hold{background:var(--bg3);color:var(--tx3);border:0.5px solid var(--bd2)}
+.art-filter-btn{font-size:10px;padding:2px 7px;border-radius:99px;border:0.5px solid var(--bd2);background:transparent;cursor:pointer;color:var(--tx2);font-family:var(--font);display:flex;align-items:center}
+.art-filter-btn:hover{background:var(--bg);color:var(--tx)}
+.art-filter-btn.active{background:var(--tx);color:var(--bg);border-color:var(--tx)}
 /* editor */
 .editor-pane{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 .editor-wrap{flex:1;overflow:auto;padding:36px 32px;position:relative}
@@ -174,6 +177,14 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
           <button class="new-art-btn" id="trashBtn" onclick="toggleTrash()" title="ゴミ箱"><i class="ti ti-trash"></i></button>
           <button class="new-art-btn" id="newArtBtn" onclick="newArticle()"><i class="ti ti-plus"></i>新規</button>
         </div>
+      </div>
+      <div id="artFilterBar" style="display:flex;flex-wrap:wrap;gap:3px;padding:5px 8px;border-bottom:0.5px solid var(--bd);flex-shrink:0">
+        <button class="art-filter-btn active" id="af-active" onclick="setArtFilter('active')">作業中</button>
+        <button class="art-filter-btn" id="af-all" onclick="setArtFilter('all')">全て</button>
+        <button class="art-filter-btn" id="af-writing" onclick="setArtFilter('writing')"><span class="status-badge status-writing" style="cursor:inherit">作業中</span></button>
+        <button class="art-filter-btn" id="af-review" onclick="setArtFilter('review')"><span class="status-badge status-review" style="cursor:inherit">確認中</span></button>
+        <button class="art-filter-btn" id="af-done" onclick="setArtFilter('done')"><span class="status-badge status-done" style="cursor:inherit">済み</span></button>
+        <button class="art-filter-btn" id="af-hold" onclick="setArtFilter('hold')"><span class="status-badge status-hold" style="cursor:inherit">保留</span></button>
       </div>
       <div style="flex:1;overflow-y:auto;min-height:0"><div class="art-list" id="artList"></div></div>
     </div>
@@ -287,7 +298,7 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
 const SK='reporter_v4'; // Keep v4 to preserve existing data
 let state={articles:[],stocks:[],currentId:null};
 let activePara=null,currentColWidth=48,pickerSourceId=null;
-let showingTrash=false,stockPaneVisible=false,stockTab='all',stockTagFilter=null;
+let showingTrash=false,stockPaneVisible=false,stockTab='all',stockTagFilter=null,artFilter='active';
 
 // ── persistence ──
 function load(){
@@ -360,8 +371,15 @@ function permanentDelete(id,e){
 function toggleTrash(){
   showingTrash=!showingTrash;
   const btn=document.getElementById('trashBtn'),label=document.getElementById('sidebarLabel'),newBtn=document.getElementById('newArtBtn');
-  if(showingTrash){btn.style.cssText='background:var(--abg);color:var(--atx);border-color:#FAC775';label.textContent='ゴミ箱';newBtn.style.display='none';}
-  else{btn.style.cssText='';label.textContent='案件';newBtn.style.display='';}
+  const filterBar=document.getElementById('artFilterBar');
+  if(showingTrash){
+    btn.style.cssText='background:var(--abg);color:var(--atx);border-color:#FAC775';
+    label.textContent='ゴミ箱';newBtn.style.display='none';
+    if(filterBar)filterBar.style.display='none';
+  }else{
+    btn.style.cssText='';label.textContent='案件';newBtn.style.display='';
+    if(filterBar)filterBar.style.display='';
+  }
   renderArtList();
 }
 function startRename(id,e){
@@ -374,10 +392,46 @@ function startRename(id,e){
   el.onblur=()=>{art.title=el.innerText.trim()||art.title;el.contentEditable='false';save(true);renderArtList();};
   el.onkeydown=e2=>{if(e2.key==='Enter'){e2.preventDefault();el.blur();}};
 }
+function updateFilterCounts(){
+  const active=state.articles.filter(a=>!a.deleted);
+  const counts={
+    all:active.length,
+    active:active.filter(a=>!a.status||a.status==='writing'||a.status==='review').length,
+    writing:active.filter(a=>(a.status||'writing')==='writing').length,
+    review:active.filter(a=>a.status==='review').length,
+    done:active.filter(a=>a.status==='done').length,
+    hold:active.filter(a=>a.status==='hold').length
+  };
+  Object.entries(counts).forEach(([k,v])=>{
+    const btn=document.getElementById('af-'+k);
+    if(!btn)return;
+    // Update or add count badge
+    let badge=btn.querySelector('.filter-count');
+    if(!badge){badge=document.createElement('span');badge.className='filter-count';badge.style.cssText='margin-left:3px;font-size:9px;opacity:0.7';btn.appendChild(badge);}
+    badge.textContent=v?`(${v})`:'';
+  });
+}
+
+function setArtFilter(f){
+  artFilter=f;
+  // Hide filter bar when in trash mode
+  document.querySelectorAll('.art-filter-btn').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('af-'+f);if(btn)btn.classList.add('active');
+  renderArtList();
+}
+
 function renderArtList(){
   const el=document.getElementById('artList');
-  const list=showingTrash?state.articles.filter(a=>a.deleted):state.articles.filter(a=>!a.deleted);
-  if(!list.length){el.innerHTML=`<div style="padding:12px;font-size:11px;color:var(--tx3);text-align:center">${showingTrash?'ゴミ箱は空です':'案件がありません'}</div>`;return;}
+  let list=showingTrash
+    ? state.articles.filter(a=>a.deleted)
+    : state.articles.filter(a=>!a.deleted);
+  // Apply status filter (only when not in trash)
+  if(!showingTrash){
+    if(artFilter==='active') list=list.filter(a=>!a.status||a.status==='writing'||a.status==='review');
+    else if(artFilter!=='all') list=list.filter(a=>(a.status||'writing')===artFilter);
+  }
+  updateFilterCounts();
+  if(!list.length){el.innerHTML=`<div style="padding:12px;font-size:11px;color:var(--tx3);text-align:center">${showingTrash?'ゴミ箱は空です':artFilter!=='all'&&artFilter!=='active'?'該当する案件がありません':'案件がありません'}</div>`;return;}
   if(showingTrash){
     el.innerHTML=list.map(a=>`<div class="art-item" style="opacity:0.75">
       <div class="art-item-title">${esc(a.title)}</div>
@@ -604,59 +658,52 @@ function copyQuote(id){
 }
 
 function highlightParaInEditor(paraNum){
-  const hl=document.getElementById('paraHighlight');
-  const ta=document.getElementById('editor');
-  const wrap=document.getElementById('editorWrap');
-  if(!hl||!ta||!wrap||!paraNum){if(hl)hl.style.display='none';return;}
+  const hl = document.getElementById('paraHighlight');
+  const ta = document.getElementById('editor');
+  const wrap = document.getElementById('editorWrap');
+  if(!hl || !ta || !wrap || !paraNum){ if(hl) hl.style.display='none'; return; }
 
-  const text=ta.value;
-  const paras=getParas(text);
-  const para=paras.find(p=>p.num===paraNum);
-  if(!para){hl.style.display='none';return;}
+  const text = ta.value;
+  const paras = getParas(text);
+  const para = paras.find(p => p.num === paraNum);
+  if(!para){ hl.style.display='none'; return; }
 
-  // Use a hidden mirror div with exact same styling as textarea
-  let mirror=document.getElementById('editorMirror');
-  if(!mirror){
-    mirror=document.createElement('div');
-    mirror.id='editorMirror';
-    document.body.appendChild(mirror);
-  }
-  const cs=window.getComputedStyle(ta);
-  mirror.style.cssText=`position:fixed;top:-9999px;left:-9999px;visibility:hidden;`+
-    `font-family:${cs.fontFamily};font-size:${cs.fontSize};line-height:${cs.lineHeight};`+
-    `width:${ta.clientWidth}px;padding:0;border:none;box-sizing:border-box;`+
-    `white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;`;
+  // Measure line height from computed style
+  const cs = window.getComputedStyle(ta);
+  const lineH = parseFloat(cs.lineHeight) || 30;
+  const padTop = 36; // editor-wrap padding
 
-  const lineH=parseFloat(cs.lineHeight)||30;
-  const edPad=36;
+  // Count visual lines before this paragraph (each 
+ = 1 line)
+  const allLines = text.split('
+');
+  let linesBefore = 0;
+  for(let i = 0; i < para.lineIdx; i++) linesBefore++;
 
-  // Measure top of paragraph
-  const allLines=text.split('\n');
-  const beforeLines=allLines.slice(0,para.lineIdx);
-  mirror.textContent=beforeLines.join('\n')+(beforeLines.length?'\n':'');
-  const topPx=beforeLines.length?mirror.offsetHeight:0;
+  // Height of the paragraph itself (may wrap - estimate by char count / chars per line)
+  const taWidth = ta.clientWidth;
+  const charWidth = parseFloat(cs.fontSize) * 0.88; // approx for Georgia
+  const charsPerLine = Math.max(1, Math.floor(taWidth / charWidth));
+  const paraLines = Math.max(1, Math.ceil(para.text.length / charsPerLine));
 
-  // Measure bottom of paragraph
-  mirror.textContent=beforeLines.join('\n')+(beforeLines.length?'\n':'')+para.text;
-  const bottomPx=mirror.offsetHeight;
+  const topPx = padTop + linesBefore * lineH - ta.scrollTop;
+  const heightPx = paraLines * lineH + 4;
 
-  const top=edPad+topPx-ta.scrollTop;
-  const height=Math.max(lineH,bottomPx-topPx)+4;
+  hl.style.display = 'block';
+  hl.style.top = topPx + 'px';
+  hl.style.height = heightPx + 'px';
+  hl.style.left = '28px';
+  hl.style.right = '28px';
 
-  hl.style.display='block';
-  hl.style.top=top+'px';
-  hl.style.height=height+'px';
-  hl.style.left='28px';
-  hl.style.right='28px';
-
-  // Scroll so paragraph is visible
-  const scrollTarget=edPad+topPx-wrap.clientHeight/3;
-  ta.scrollTop=Math.max(0,scrollTarget);
-  // Re-adjust after scroll
-  setTimeout(()=>{
-    hl.style.top=(edPad+topPx-ta.scrollTop)+'px';
-  },50);
+  // Scroll textarea so paragraph is visible (center it)
+  const targetScroll = padTop + linesBefore * lineH - wrap.clientHeight / 3;
+  ta.scrollTop = Math.max(0, targetScroll);
+  // Reposition hl after scroll settles
+  requestAnimationFrame(() => {
+    hl.style.top = (padTop + linesBefore * lineH - ta.scrollTop) + 'px';
+  });
 }
+
 
 function onSourceCardClick(id){
   const art=getCurrentArticle();if(!art)return;
