@@ -74,12 +74,12 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 .workspace{display:flex;flex:1;overflow:hidden}
 
 /* ── sidebar ── */
-.sidebar{width:var(--sidebar);background:var(--bg2);border-right:0.5px solid var(--bd);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.sidebar{width:var(--sidebar);background:var(--bg2);border-right:0.5px solid var(--bd);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;min-height:0}
 .sidebar-head{padding:10px 12px 6px;border-bottom:0.5px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
 .sidebar-head span{font-size:11px;font-weight:500;color:var(--tx3);text-transform:uppercase;letter-spacing:0.05em}
 .new-art-btn{font-size:11px;padding:2px 8px;border-radius:var(--r);border:0.5px solid var(--bd2);background:transparent;cursor:pointer;color:var(--tx2);font-family:var(--font);display:flex;align-items:center;gap:3px}
 .new-art-btn:hover{background:var(--green);color:#fff;border-color:var(--green)}
-.art-list{flex:1;overflow-y:auto;padding:6px}
+.art-list{flex:1;overflow-y:auto;padding:6px;min-height:0}
 .art-item{padding:7px 9px;border-radius:var(--r);cursor:pointer;margin-bottom:2px;border:0.5px solid transparent;position:relative}
 .art-item:hover{background:var(--bg);border-color:var(--bd)}
 .art-item.active{background:var(--bg);border-color:var(--green);border-width:1.5px}
@@ -210,6 +210,7 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
     </div>
     <div style="flex:1"></div>
     <button class="tbtn" onclick="openAddSourceModal(null)"><i class="ti ti-plus"></i> 引用元を追加</button>
+    <button class="tbtn" id="stockPaneBtn" onclick="toggleStockPane()"><i class="ti ti-bookmarks"></i> ストック<span id="stockCount" style="margin-left:4px;background:var(--bbg);color:var(--btx);font-size:10px;padding:1px 6px;border-radius:99px;font-weight:600"></span></button>
     <button class="tbtn" onclick="copyAllForVerify()"><i class="ti ti-clipboard-copy"></i> 検証用コピー</button>
   </div>
 
@@ -223,18 +224,8 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
           <button class="new-art-btn" id="newArtBtn" onclick="newArticle()"><i class="ti ti-plus"></i>新規</button>
         </div>
       </div>
-      <div class="art-list" id="artList"></div>
-      <div class="sidebar-stock-head" onclick="toggleStockPanel()">
-        <span>ストック</span>
-        <div style="display:flex;align-items:center;gap:4px">
-          <span id="stockCount" style="font-size:10px;background:var(--bbg);color:var(--btx);padding:1px 6px;border-radius:99px;font-weight:600"></span>
-          <i class="ti ti-chevron-down" id="stockChevron" style="font-size:11px;color:var(--tx3);transition:transform 0.2s"></i>
-        </div>
-      </div>
-      <div id="stockPanel" style="display:none;flex-direction:column;overflow:hidden;flex-shrink:0">
-        <div style="padding:6px 8px 0;display:flex;gap:4px;flex-wrap:wrap" id="stockTagBar"></div>
-        <div class="art-list" id="stockList" style="flex:1;max-height:280px"></div>
-        <button class="new-art-btn" style="margin:4px 8px 8px" onclick="openAddStockModal()"><i class="ti ti-plus"></i>ストックに追加</button>
+      <div style="flex:1;overflow-y:auto;min-height:0">
+        <div class="art-list" id="artList"></div>
       </div>
     </div>
 
@@ -258,6 +249,26 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
           <span id="activeParaInfo" style="font-size:11px;color:var(--green);font-weight:500"></span>
         </div>
       </div>
+    </div>
+
+    <!-- stock pane -->
+    <div id="stockPane" style="display:none;width:320px;border-left:0.5px solid var(--bd);display:none;flex-direction:column;background:var(--bg2);flex-shrink:0;overflow:hidden">
+      <div style="padding:9px 14px 0;border-bottom:0.5px solid var(--bd);flex-shrink:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:12px;font-weight:500;color:var(--tx2)">ストック・引用元一覧</span>
+          <button class="sbtn" onclick="toggleStockPane()"><i class="ti ti-x" style="font-size:12px"></i></button>
+        </div>
+        <div style="display:flex;gap:0">
+          <div id="stab-all" class="src-tab active" style="cursor:pointer" onclick="switchStockTab('all')"><i class="ti ti-database" style="font-size:12px"></i> 全て</div>
+          <div id="stab-unused" class="src-tab" style="cursor:pointer" onclick="switchStockTab('unused')"><i class="ti ti-bookmark" style="font-size:12px"></i> 未使用</div>
+        </div>
+      </div>
+      <div style="padding:6px 10px;border-bottom:0.5px solid var(--bd);flex-shrink:0;display:flex;gap:4px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:10px;color:var(--tx3)">タグ:</span>
+        <div id="stockTagBar" style="display:flex;gap:3px;flex-wrap:wrap;flex:1"></div>
+        <button class="source-add-btn" onclick="openAddStockModal()"><i class="ti ti-plus" style="font-size:11px"></i>追加</button>
+      </div>
+      <div id="stockBody" style="flex:1;overflow-y:auto;padding:10px 12px"></div>
     </div>
 
     <!-- source pane -->
@@ -337,68 +348,123 @@ let state={articles:[],currentId:null};
 let activePara=null;
 let pickerSourceId=null;
 
-// ── stock ──
+// ── stock pane ──
 let stockTagFilter = null;
-let stockPanelOpen = false;
+let stockTab = 'all'; // 'all' or 'unused'
+let stockPaneVisible = false;
 
-function toggleStockPanel(){
-  stockPanelOpen = !stockPanelOpen;
-  const panel = document.getElementById('stockPanel');
-  const chevron = document.getElementById('stockChevron');
-  panel.style.display = stockPanelOpen ? 'flex' : 'none';
-  panel.style.flexDirection = 'column';
-  chevron.style.transform = stockPanelOpen ? 'rotate(180deg)' : '';
-  if(stockPanelOpen) renderStockPanel();
+function toggleStockPane(){
+  stockPaneVisible = !stockPaneVisible;
+  const pane = document.getElementById('stockPane');
+  const btn = document.getElementById('stockPaneBtn');
+  pane.style.display = stockPaneVisible ? 'flex' : 'none';
+  pane.style.flexDirection = stockPaneVisible ? 'column' : '';
+  if(btn) btn.classList.toggle('active', stockPaneVisible);
+  if(stockPaneVisible) renderStockPane();
 }
 
-function renderStockPanel(){
-  if(!stockPanelOpen) return;
-  const stocks = state.stocks || [];
-  const countEl = document.getElementById('stockCount');
-  if(countEl) countEl.textContent = stocks.length ? stocks.length+'件' : '';
+function switchStockTab(tab){
+  stockTab = tab;
+  document.getElementById('stab-all').classList.toggle('active', tab==='all');
+  document.getElementById('stab-unused').classList.toggle('active', tab==='unused');
+  renderStockPane();
+}
 
-  // Tag bar
+function renderStockPane(){
+  if(!stockPaneVisible) return;
+  const stocks = state.stocks || [];
+
+  // Build unified list: stock items + all article sources
+  let allItems = [];
+
+  // Stock items (unattached)
+  stocks.forEach(s=>{
+    allItems.push({...s, _kind:'stock', _artTitle:null});
+  });
+
+  // Article sources
+  if(stockTab === 'all'){
+    (state.articles||[]).filter(a=>!a.deleted).forEach(art=>{
+      (art.sources||[]).forEach(s=>{
+        allItems.push({...s, _kind:'source', _artTitle:art.title, _artId:art.id, tags:s.tags||[]});
+      });
+    });
+  }
+
+  // Tag filter
+  const allTags = [...new Set(allItems.flatMap(s=>s.tags||[]))];
   const tagBar = document.getElementById('stockTagBar');
-  const allTags = [...new Set(stocks.flatMap(s=>s.tags||[]))];
   tagBar.innerHTML = [
-    `<button class="stock-tag-btn${!stockTagFilter?' active':''}" onclick="setStockTag(null)">すべて</button>`,
-    ...allTags.map(t=>`<button class="stock-tag-btn${stockTagFilter===t?' active':''}" onclick="setStockTag('${esc(t)}')">${esc(t)}</button>`)
+    `<button class="stock-tag-btn${!stockTagFilter?' active':''}" onclick="setStockTag(null)" style="font-size:10px">すべて</button>`,
+    ...allTags.map(t=>`<button class="stock-tag-btn${stockTagFilter===t?' active':''}" onclick="setStockTag('${esc(t)}')" style="font-size:10px">${esc(t)}</button>`)
   ].join('');
 
-  // Stock list
-  const list = document.getElementById('stockList');
-  const filtered = stockTagFilter ? stocks.filter(s=>(s.tags||[]).includes(stockTagFilter)) : stocks;
+  const filtered = stockTagFilter ? allItems.filter(s=>(s.tags||[]).includes(stockTagFilter)) : allItems;
+
+  updateStockCount();
+
+  const body = document.getElementById('stockBody');
   if(!filtered.length){
-    list.innerHTML='<div style="padding:10px;font-size:11px;color:var(--tx3);text-align:center">ストックがありません</div>';
+    body.innerHTML=`<div class="source-empty">${stockTab==='unused'?'未使用のストックがありません':'引用元がありません'}</div>`;
     return;
   }
-  list.innerHTML = filtered.map(s=>`
-    <div class="stock-item">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:4px">
-        <div style="min-width:0;flex:1">
-          <div class="stock-item-title">${esc(s.note||s.quote?.slice(0,40)||'（テキストなし）')}</div>
-          <div class="stock-item-url">${esc(s.url||'')}</div>
-          ${(s.tags||[]).length?`<div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:2px">${s.tags.map(t=>`<span style="font-size:9px;background:var(--bbg);color:var(--btx);padding:1px 5px;border-radius:99px">${esc(t)}</span>`).join('')}</div>`:''}
+
+  body.innerHTML = filtered.map(item=>{
+    const isStock = item._kind==='stock';
+    const artLabel = item._artTitle
+      ? `<span style="font-size:9px;background:var(--gbg);color:var(--gtx);padding:1px 5px;border-radius:99px">${esc(item._artTitle)}</span>`
+      : `<span style="font-size:9px;background:var(--bg2);color:var(--tx3);padding:1px 5px;border-radius:99px;border:0.5px dashed var(--bd2)">未使用</span>`;
+    return `<div class="sc" style="margin-bottom:8px">
+      <div class="sc-top">
+        <div style="flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:3px">
+          <span class="stag ${tagClass(item.type||'その他')}">${esc(item.type||'その他')}</span>
+          ${artLabel}
+          ${item.paraNum?`<span style="font-size:9px;background:var(--gbg);color:var(--gtx);padding:1px 5px;border-radius:99px">段落${item.paraNum}</span>`:''}
+          ${(item.tags||[]).map(t=>`<span style="font-size:9px;background:var(--bbg);color:var(--btx);padding:1px 5px;border-radius:99px">${esc(t)}</span>`).join('')}
         </div>
-        <button class="sbtn del" style="flex-shrink:0" onclick="deleteStock('${s.id}')"><i class="ti ti-x" style="font-size:10px"></i></button>
+        <button class="sbtn del" onclick="${isStock?`deleteStock('${item.id}')`:`deleteSourceFromStock('${item._artId}','${item.id}')`}"><i class="ti ti-trash" style="font-size:10px"></i></button>
       </div>
-      ${s.quote?`<div style="font-size:10px;font-style:italic;color:var(--tx2);margin-top:4px;border-left:2px solid var(--bd2);padding-left:5px;line-height:1.4">${esc(s.quote.slice(0,80))}${s.quote.length>80?'…':''}</div>`:''}
-      <div style="display:flex;gap:4px;margin-top:5px">
-        <button class="new-art-btn" style="flex:1;justify-content:center;font-size:10px" onclick="moveStockToSource('${s.id}')"><i class="ti ti-transfer" style="font-size:10px"></i>案件へ移動</button>
-        <button class="new-art-btn" style="flex:1;justify-content:center;font-size:10px" onclick="openEditStock('${s.id}')"><i class="ti ti-edit" style="font-size:10px"></i>編集</button>
+      ${item.note?`<div style="font-size:11px;color:var(--tx2);margin-bottom:3px">${esc(item.note)}</div>`:''}
+      ${item.quote?`<div class="sc-quote" style="font-size:11px">${esc(item.quote.slice(0,120))}${item.quote.length>120?'…':''}</div>`:''}
+      ${item.url?`<div class="sc-url"><a href="${esc(item.url)}" target="_blank">${esc(item.url)}</a></div>`:''}
+      <div class="sc-actions">
+        ${isStock?`<button class="sbtn" onclick="moveStockToSource('${item.id}')"><i class="ti ti-transfer" style="font-size:10px"></i>案件へ移動</button>`:''}
+        ${isStock?`<button class="sbtn" onclick="openEditStock('${item.id}')"><i class="ti ti-edit" style="font-size:10px"></i>編集</button>`:''}
+        ${!isStock?`<button class="sbtn" onclick="moveSourceToStock('${item._artId}','${item.id}')"><i class="ti ti-bookmark" style="font-size:10px"></i>ストックへ</button>`:''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function setStockTag(tag){
   stockTagFilter = tag;
-  renderStockPanel();
+  renderStockPane();
 }
 
 function updateStockCount(){
   const stocks = state.stocks || [];
   const countEl = document.getElementById('stockCount');
-  if(countEl) countEl.textContent = stocks.length ? stocks.length+'件' : '';
+  const total = stocks.length + (state.articles||[]).filter(a=>!a.deleted).reduce((n,a)=>n+(a.sources||[]).length,0);
+  if(countEl) countEl.textContent = total ? total+'件' : '';
+}
+
+function moveSourceToStock(artId, sourceId){
+  const art = state.articles.find(a=>a.id===artId);
+  if(!art) return;
+  const s = art.sources.find(x=>x.id===sourceId);
+  if(!s) return;
+  if(!state.stocks) state.stocks=[];
+  state.stocks.unshift({id:uid(),url:s.url||'',quote:s.quote||'',note:s.note||'',tags:[],savedAt:new Date().toLocaleDateString('ja')});
+  art.sources = art.sources.filter(x=>x.id!==sourceId);
+  save(true);renderSources();renderArtList();renderStockPane();
+}
+
+function deleteSourceFromStock(artId, sourceId){
+  if(!confirm('削除しますか？')) return;
+  const art = state.articles.find(a=>a.id===artId);
+  if(!art) return;
+  art.sources = art.sources.filter(x=>x.id!==sourceId);
+  save(true);renderSources();renderArtList();renderStockPane();
 }
 
 let editingStockId = null;
@@ -471,7 +537,7 @@ function checkPendingForStock(clips){
     state.stocks.unshift({id:uid(),url:c.url||'',quote:c.quote||'',note:c.title||'',tags:[],savedAt:new Date().toLocaleDateString('ja')});
   });
   save(true);updateStockCount();
-  if(stockPanelOpen) renderStockPanel();
+  if(stockPaneVisible) renderStockPane();
 }
 
 function load(){
@@ -481,6 +547,7 @@ function load(){
   else{renderArtList();renderEditor();renderSources();}
   checkPending();
   updateStockCount();
+  if(stockPaneVisible) renderStockPane();
 }
 
 function save(silent){
