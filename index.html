@@ -1,6 +1,24 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head><script>
+<head><!-- add stock modal -->
+<div class="modal-bg hidden" id="addStockModal">
+  <div class="modal" style="width:500px">
+    <h2><i class="ti ti-bookmarks"></i> ストックに保存</h2>
+    <div class="fl"><label class="flabel">URL</label><input class="fi" id="sUrl" placeholder="https://..."></div>
+    <div class="fl"><label class="flabel">引用テキスト</label><textarea class="fi" id="sQuote" placeholder="気になった部分をペースト"></textarea></div>
+    <div class="fl"><label class="flabel">メモ・タイトル</label><input class="fi" id="sNote" placeholder="何についての記事か、一言メモ"></div>
+    <div class="fl">
+      <label class="flabel">テーマタグ（カンマ区切り）</label>
+      <input class="fi" id="sTags" placeholder="例: イスラエル, 停戦交渉, ネタニヤフ">
+    </div>
+    <div class="modal-footer">
+      <button class="mbtn" onclick="closeModal('addStockModal')">キャンセル</button>
+      <button class="mbtn primary" onclick="saveStock()"><i class="ti ti-check"></i> 保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
 (function(){
   var PASS_KEY = "reporter_auth_v1";
   var CORRECT = "press2025";
@@ -76,6 +94,13 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 .status-review{background:var(--abg);color:var(--atx)}
 .status-done{background:var(--gbg);color:var(--gtx)}
 .status-hold{background:var(--bg3);color:var(--tx3);border:0.5px solid var(--bd2)}
+.sidebar-stock-head{padding:8px 12px;border-top:0.5px solid var(--bd);display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-size:11px;font-weight:500;color:var(--tx2);text-transform:uppercase;letter-spacing:0.05em;flex-shrink:0}
+.sidebar-stock-head:hover{background:var(--bg)}
+.stock-item{padding:7px 9px;border-radius:var(--r);margin-bottom:3px;border:0.5px solid var(--bd);background:var(--bg);font-size:11px}
+.stock-item-title{color:var(--tx);line-height:1.4;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stock-item-url{color:var(--tx3);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stock-tag-btn{font-size:10px;padding:2px 8px;border-radius:99px;border:0.5px solid var(--bd2);background:transparent;cursor:pointer;color:var(--tx2);font-family:var(--font)}
+.stock-tag-btn:hover,.stock-tag-btn.active{background:var(--bbg);color:var(--btx);border-color:#B5D4F4}
 
 /* ── editor ── */
 .editor-pane{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
@@ -199,6 +224,18 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
         </div>
       </div>
       <div class="art-list" id="artList"></div>
+      <div class="sidebar-stock-head" onclick="toggleStockPanel()">
+        <span>ストック</span>
+        <div style="display:flex;align-items:center;gap:4px">
+          <span id="stockCount" style="font-size:10px;background:var(--bbg);color:var(--btx);padding:1px 6px;border-radius:99px;font-weight:600"></span>
+          <i class="ti ti-chevron-down" id="stockChevron" style="font-size:11px;color:var(--tx3);transition:transform 0.2s"></i>
+        </div>
+      </div>
+      <div id="stockPanel" style="display:none;flex-direction:column;overflow:hidden;flex-shrink:0">
+        <div style="padding:6px 8px 0;display:flex;gap:4px;flex-wrap:wrap" id="stockTagBar"></div>
+        <div class="art-list" id="stockList" style="flex:1;max-height:280px"></div>
+        <button class="new-art-btn" style="margin:4px 8px 8px" onclick="openAddStockModal()"><i class="ti ti-plus"></i>ストックに追加</button>
+      </div>
     </div>
 
     <!-- editor -->
@@ -300,11 +337,150 @@ let state={articles:[],currentId:null};
 let activePara=null;
 let pickerSourceId=null;
 
+// ── stock ──
+let stockTagFilter = null;
+let stockPanelOpen = false;
+
+function toggleStockPanel(){
+  stockPanelOpen = !stockPanelOpen;
+  const panel = document.getElementById('stockPanel');
+  const chevron = document.getElementById('stockChevron');
+  panel.style.display = stockPanelOpen ? 'flex' : 'none';
+  panel.style.flexDirection = 'column';
+  chevron.style.transform = stockPanelOpen ? 'rotate(180deg)' : '';
+  if(stockPanelOpen) renderStockPanel();
+}
+
+function renderStockPanel(){
+  if(!stockPanelOpen) return;
+  const stocks = state.stocks || [];
+  const countEl = document.getElementById('stockCount');
+  if(countEl) countEl.textContent = stocks.length ? stocks.length+'件' : '';
+
+  // Tag bar
+  const tagBar = document.getElementById('stockTagBar');
+  const allTags = [...new Set(stocks.flatMap(s=>s.tags||[]))];
+  tagBar.innerHTML = [
+    `<button class="stock-tag-btn${!stockTagFilter?' active':''}" onclick="setStockTag(null)">すべて</button>`,
+    ...allTags.map(t=>`<button class="stock-tag-btn${stockTagFilter===t?' active':''}" onclick="setStockTag('${esc(t)}')">${esc(t)}</button>`)
+  ].join('');
+
+  // Stock list
+  const list = document.getElementById('stockList');
+  const filtered = stockTagFilter ? stocks.filter(s=>(s.tags||[]).includes(stockTagFilter)) : stocks;
+  if(!filtered.length){
+    list.innerHTML='<div style="padding:10px;font-size:11px;color:var(--tx3);text-align:center">ストックがありません</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(s=>`
+    <div class="stock-item">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:4px">
+        <div style="min-width:0;flex:1">
+          <div class="stock-item-title">${esc(s.note||s.quote?.slice(0,40)||'（テキストなし）')}</div>
+          <div class="stock-item-url">${esc(s.url||'')}</div>
+          ${(s.tags||[]).length?`<div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:2px">${s.tags.map(t=>`<span style="font-size:9px;background:var(--bbg);color:var(--btx);padding:1px 5px;border-radius:99px">${esc(t)}</span>`).join('')}</div>`:''}
+        </div>
+        <button class="sbtn del" style="flex-shrink:0" onclick="deleteStock('${s.id}')"><i class="ti ti-x" style="font-size:10px"></i></button>
+      </div>
+      ${s.quote?`<div style="font-size:10px;font-style:italic;color:var(--tx2);margin-top:4px;border-left:2px solid var(--bd2);padding-left:5px;line-height:1.4">${esc(s.quote.slice(0,80))}${s.quote.length>80?'…':''}</div>`:''}
+      <div style="display:flex;gap:4px;margin-top:5px">
+        <button class="new-art-btn" style="flex:1;justify-content:center;font-size:10px" onclick="moveStockToSource('${s.id}')"><i class="ti ti-transfer" style="font-size:10px"></i>案件へ移動</button>
+        <button class="new-art-btn" style="flex:1;justify-content:center;font-size:10px" onclick="openEditStock('${s.id}')"><i class="ti ti-edit" style="font-size:10px"></i>編集</button>
+      </div>
+    </div>`).join('');
+}
+
+function setStockTag(tag){
+  stockTagFilter = tag;
+  renderStockPanel();
+}
+
+function updateStockCount(){
+  const stocks = state.stocks || [];
+  const countEl = document.getElementById('stockCount');
+  if(countEl) countEl.textContent = stocks.length ? stocks.length+'件' : '';
+}
+
+let editingStockId = null;
+
+function openAddStockModal(prefill){
+  editingStockId = null;
+  document.getElementById('sUrl').value = prefill?.url || '';
+  document.getElementById('sQuote').value = prefill?.quote || '';
+  document.getElementById('sNote').value = prefill?.note || '';
+  document.getElementById('sTags').value = (prefill?.tags||[]).join(', ');
+  document.getElementById('addStockModal').classList.remove('hidden');
+}
+
+function openEditStock(id){
+  const s = (state.stocks||[]).find(x=>x.id===id);
+  if(!s) return;
+  editingStockId = id;
+  document.getElementById('sUrl').value = s.url||'';
+  document.getElementById('sQuote').value = s.quote||'';
+  document.getElementById('sNote').value = s.note||'';
+  document.getElementById('sTags').value = (s.tags||[]).join(', ');
+  document.getElementById('addStockModal').classList.remove('hidden');
+}
+
+function saveStock(){
+  if(!state.stocks) state.stocks=[];
+  const url = document.getElementById('sUrl').value.trim();
+  const quote = document.getElementById('sQuote').value.trim();
+  const note = document.getElementById('sNote').value.trim();
+  const tagsRaw = document.getElementById('sTags').value.trim();
+  const tags = tagsRaw ? tagsRaw.split(/[,、]/).map(t=>t.trim()).filter(Boolean) : [];
+  if(!url&&!quote&&!note){alert('URL、引用テキスト、メモのいずれかを入力してください');return;}
+  const item = {id:editingStockId||uid(), url, quote, note, tags, savedAt:new Date().toLocaleDateString('ja')};
+  if(editingStockId){
+    const idx=state.stocks.findIndex(s=>s.id===editingStockId);
+    if(idx>=0) state.stocks[idx]=item;
+  } else {
+    state.stocks.unshift(item);
+  }
+  save(true);
+  updateStockCount();
+  renderStockPanel();
+  closeModal('addStockModal');
+}
+
+function deleteStock(id){
+  if(!confirm('このストックを削除しますか？')) return;
+  state.stocks=(state.stocks||[]).filter(s=>s.id!==id);
+  save(true);updateStockCount();renderStockPanel();
+}
+
+function moveStockToSource(id){
+  const art = getCurrentArticle();
+  if(!art){alert('まず左の案件を選択してください');return;}
+  const s = (state.stocks||[]).find(x=>x.id===id);
+  if(!s) return;
+  art.sources.push({
+    id:uid(), url:s.url||'', quote:s.quote||'', translation:'',
+    type:'その他', note:s.note||'', paraNum:activePara||null, sourceKind:'web'
+  });
+  state.stocks=(state.stocks||[]).filter(x=>x.id!==id);
+  save(true);updateStockCount();renderStockPanel();renderSources();renderArtList();
+  alert(`「${s.note||s.url||'ストック'}」を${art.title}の引用元に移動しました`);
+}
+
+// Accept pending clips into stock when no article is selected
+function checkPendingForStock(clips){
+  if(!state.stocks) state.stocks=[];
+  clips.forEach(c=>{
+    state.stocks.unshift({id:uid(),url:c.url||'',quote:c.quote||'',note:c.title||'',tags:[],savedAt:new Date().toLocaleDateString('ja')});
+  });
+  save(true);updateStockCount();
+  if(stockPanelOpen) renderStockPanel();
+}
+
 function load(){
   try{const d=localStorage.getItem(SK);if(d)state=JSON.parse(d);}catch(e){}
+  if(!state.stocks) state.stocks=[];
   if(!state.articles.length)newArticle(true);
   else{renderArtList();renderEditor();renderSources();}
   checkPending();
+  updateStockCount();
 }
 
 function save(silent){
