@@ -71,6 +71,11 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 .art-item-del{position:absolute;top:6px;right:6px;background:transparent;border:none;cursor:pointer;color:var(--tx3);padding:1px;display:none;font-size:12px}
 .art-item:hover .art-item-del{display:block}
 .art-item-del:hover{color:#E24B4A}
+.status-badge{font-size:9px;padding:1px 6px;border-radius:99px;cursor:pointer;font-weight:600;flex-shrink:0;white-space:nowrap}
+.status-writing{background:var(--bbg);color:var(--btx)}
+.status-review{background:var(--abg);color:var(--atx)}
+.status-done{background:var(--gbg);color:var(--gtx)}
+.status-hold{background:var(--bg3);color:var(--tx3);border:0.5px solid var(--bd2)}
 
 /* ── editor ── */
 .editor-pane{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
@@ -205,9 +210,9 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
           <span id="colWidthLabel" style="font-size:11px;color:var(--tx2);min-width:36px">48字</span>
         </div>
         <div style="display:flex;gap:16px;align-items:center">
-          <span id="charCount" style="font-size:12px;font-weight:500;color:var(--tx)">0 文字</span>
-          <span id="lineCount" style="font-size:12px;font-weight:500;color:var(--tx)">0 行</span>
-          <span id="paraCount" style="font-size:12px;font-weight:500;color:var(--tx)">0 段落</span>
+          <span id="charCount" style="font-size:16px;font-weight:600;color:var(--tx)">0 文字</span>
+          <span id="lineCount" style="font-size:16px;font-weight:600;color:var(--tx)">0 行</span>
+          <span id="paraCount" style="font-size:16px;font-weight:600;color:var(--tx)">0 段落</span>
           <span id="activeParaInfo" style="font-size:11px;color:var(--green);font-weight:500"></span>
         </div>
       </div>
@@ -232,10 +237,10 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
   <div class="modal" style="width:600px">
     <h2 id="addSourceTitle">引用元を追加</h2>
     <div style="display:flex;gap:0;border-bottom:0.5px solid var(--bd);margin-bottom:16px" id="srcTabBar">
-      <button class="src-tab active" onclick="switchSrcTab('web')" id="tab-web">
+      <button class="src-tab active" onclick="switchSrcTab('web')" id="tab-web" type="button">
         <i class="ti ti-link"></i> ウェブ・SNS
       </button>
-      <button class="src-tab" onclick="switchSrcTab('interview')" id="tab-interview">
+      <button class="src-tab" onclick="switchSrcTab('interview')" id="tab-interview" type="button">
         <i class="ti ti-microphone"></i> インタビュー・独自メモ
       </button>
     </div>
@@ -310,7 +315,6 @@ function save(silent){
 function autoSave(){
   const art=getCurrentArticle();
   if(art){art.text=document.getElementById('editor').value;updateFooter();}
-  const ov=document.getElementById('colOverlay');if(ov&&ov.style.display!=='none')ov.textContent=document.getElementById('editor').value;
   try{localStorage.setItem(SK,JSON.stringify(state));}catch(e){}
 }
 function saveArticle(){save(false);}
@@ -360,6 +364,18 @@ function startRename(id,e){
   titleEl.onkeydown=e2=>{if(e2.key==='Enter'){e2.preventDefault();titleEl.blur();}};
 }
 
+const STATUS_LIST=['writing','review','done','hold'];
+const STATUS_LABELS={'writing':'作業中','review':'確認中','done':'済み','hold':'保留'};
+const STATUS_COLORS={'writing':'--blue','review':'--abg-color','done':'--green','hold':'--tx3'};
+function statusLabel(s){return STATUS_LABELS[s]||'作業中';}
+function cycleStatus(id,e){
+  e.stopPropagation();
+  const art=state.articles.find(a=>a.id===id);if(!art)return;
+  const idx=STATUS_LIST.indexOf(art.status||'writing');
+  art.status=STATUS_LIST[(idx+1)%STATUS_LIST.length];
+  save(true);renderArtList();
+}
+
 function renderArtList(){
   const el=document.getElementById('artList');
   if(!state.articles.length){
@@ -368,9 +384,14 @@ function renderArtList(){
   }
   el.innerHTML=state.articles.map(a=>`
     <div class="art-item${a.id===state.currentId?' active':''}" onclick="selectArticle('${a.id}')">
-      <div class="art-item-title" id="at_${a.id}" ondblclick="startRename('${a.id}',event)">${esc(a.title)}</div>
-      <div class="art-item-meta">${a.createdAt} · 引用${a.sources.length}件</div>
-      <button class="art-item-del" onclick="deleteArticle('${a.id}',event)" title="削除"><i class="ti ti-x"></i></button>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
+        <div class="art-item-title" id="at_${a.id}" ondblclick="startRename('${a.id}',event)">${esc(a.title)}</div>
+        <button class="art-item-del" onclick="deleteArticle('${a.id}',event)" title="削除"><i class="ti ti-x"></i></button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:3px">
+        <div class="art-item-meta">${a.createdAt} · 引用${a.sources.length}件</div>
+        <span class="status-badge status-${a.status||'writing'}" onclick="cycleStatus('${a.id}',event)">${statusLabel(a.status||'writing')}</span>
+      </div>
     </div>`).join('');
 }
 
@@ -390,80 +411,42 @@ function updateColWidth(val){
 }
 
 function applyColumnLayout(){
-  const art=getCurrentArticle();
-  const text=art?art.text||'':'';
-  const wrap=document.getElementById('editorWrap');
   const ta=document.getElementById('editor');
-  if(!wrap||!ta)return;
+  const wrap=document.getElementById('editorWrap');
+  if(!ta||!wrap)return;
 
-  // Calculate char width in px (use a test span)
+  // Measure character width
   const testSpan=document.createElement('span');
   testSpan.style.cssText='position:absolute;visibility:hidden;font-family:Georgia,serif;font-size:15px;white-space:pre';
   testSpan.textContent='あ'.repeat(currentColWidth);
   document.body.appendChild(testSpan);
-  const charW=testSpan.offsetWidth;
+  const colPx=testSpan.offsetWidth+32;
   document.body.removeChild(testSpan);
 
-  const wrapW=wrap.clientWidth - 64; // subtract padding
-  const useCols = currentColWidth <= 24;
-  
+  const useCols=currentColWidth<=24;
+
   if(useCols){
-    const numCols=Math.max(1,Math.floor(wrapW/(charW+32)));
-    ta.style.width=charW+'px';
-    ta.style.minWidth=charW+'px';
-    const cols=document.getElementById('editorColumns');
-    cols.style.flexWrap='wrap';
-    cols.style.gap='0 32px';
-    // Split text into column chunks visually via CSS columns on a div
-    // Actually use CSS column-count on a wrapper div overlay
-    renderColumnView(text, charW, numCols);
+    // Use CSS columns on the textarea wrapper
+    ta.style.width='100%';
+    ta.style.height='auto';
+    ta.style.minHeight='';
+    // Wrap in a column container via the editorWrap
+    wrap.style.columnWidth=colPx+'px';
+    wrap.style.columnGap='32px';
+    wrap.style.columnFill='auto';
+    wrap.style.height='calc(100vh - 120px)';
+    // textarea fills columns naturally
+    ta.style.columnSpan='none';
   } else {
-    ta.style.width=charW+'px';
-    ta.style.minWidth=charW+'px';
-    const cols=document.getElementById('editorColumns');
-    cols.style.flexWrap='nowrap';
-    cols.style.gap='0';
-    const overlay=document.getElementById('colOverlay');
-    if(overlay)overlay.style.display='none';
-    ta.style.display='';
+    // Single column: reset columns
+    wrap.style.columnWidth='';
+    wrap.style.columnGap='';
+    wrap.style.columnFill='';
+    wrap.style.height='';
+    ta.style.width='100%';
+    ta.style.height='100%';
+    ta.style.minHeight='400px';
   }
-}
-
-function renderColumnView(text, colPx, numCols){
-  const ta=document.getElementById('editor');
-  let overlay=document.getElementById('colOverlay');
-  
-  if(numCols<=1){
-    if(overlay)overlay.style.display='none';
-    ta.style.display='';
-    return;
-  }
-
-  if(!overlay){
-    overlay=document.createElement('div');
-    overlay.id='colOverlay';
-    overlay.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;font-family:Georgia,serif;font-size:15px;line-height:2;color:var(--tx);white-space:pre-wrap;word-break:break-all;padding:36px 32px';
-    document.getElementById('editorWrap').style.position='relative';
-    document.getElementById('editorWrap').appendChild(overlay);
-  }
-
-  // Use CSS multi-column layout on overlay for visual reference
-  overlay.style.display='block';
-  overlay.style.columnCount=numCols;
-  overlay.style.columnGap='32px';
-  overlay.style.columnWidth=colPx+'px';
-  overlay.style.height='100%';
-  overlay.textContent=text;
-
-  // Keep textarea behind as actual editor but hidden visually
-  ta.style.position='absolute';
-  ta.style.opacity='0';
-  ta.style.width='100%';
-  ta.style.pointerEvents='all';
-  ta.style.zIndex='1';
-
-  // Sync overlay on input
-  ta.oninput_col=()=>{overlay.textContent=ta.value;};
 }
 
 function updateFooter(){
