@@ -180,6 +180,9 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
     <div class="topbar-sep"></div>
     <button class="tbtn primary" onclick="saveArticle()"><i class="ti ti-device-floppy"></i> 保存</button>
     <span class="save-status" id="saveStatus"></span>
+    <div id="readonlyLabel" style="display:none;align-items:center;gap:6px;padding:4px 12px;background:var(--bbg);border-radius:var(--r);border:0.5px solid #B5D4F4;font-size:12px;font-weight:500;color:var(--btx)">
+      <i class="ti ti-eye" style="font-size:13px"></i> 閲覧モード（編集するにはスライダーを25字以上に）
+    </div>
     <div style="flex:1"></div>
     <button class="tbtn" onclick="openAddSourceModal(null)"><i class="ti ti-plus"></i> 引用元を追加</button>
     <button class="tbtn" onclick="copyAllForVerify()"><i class="ti ti-clipboard-copy"></i> 検証用コピー</button>
@@ -478,6 +481,26 @@ function updateColWidth(val){
   updateFooter();
 }
 
+function setReadOnlyMode(on){
+  const shell = document.querySelector('.shell');
+  const editorPane = document.querySelector('.editor-pane');
+  const topbar = document.querySelector('.topbar');
+  const wrap = document.getElementById('editorWrap');
+  const label = document.getElementById('readonlyLabel');
+
+  if(on){
+    shell.style.borderTop = '3px solid var(--blue)';
+    topbar.style.borderBottom = '3px solid var(--blue)';
+    topbar.style.background = 'var(--bbg)';
+    if(label) label.style.display = 'flex';
+  } else {
+    shell.style.borderTop = '';
+    topbar.style.borderBottom = '0.5px solid var(--bd)';
+    topbar.style.background = 'var(--bg)';
+    if(label) label.style.display = 'none';
+  }
+}
+
 function applyColumnLayout(){
   const ta = document.getElementById('editor');
   const colEd = document.getElementById('colEditor');
@@ -493,6 +516,7 @@ function applyColumnLayout(){
     ta.style.height = '100%';
     ta.style.minHeight = '400px';
     colEd.style.display = 'none';
+    setReadOnlyMode(false);
     return;
   }
 
@@ -512,14 +536,15 @@ function applyColumnLayout(){
     ta.style.position = '';
     ta.style.opacity = '';
     colEd.style.display = 'none';
+    setReadOnlyMode(false);
     return;
   }
 
-  // Hide textarea, show column editor
+  // Hide textarea, show column editor (read-only view)
   ta.style.display = 'none';
   colEd.style.display = 'flex';
-
   renderColEditor(colPx, numCols);
+  setReadOnlyMode(true);
 }
 
 function renderColEditor(colPx, numCols){
@@ -556,6 +581,8 @@ function renderColEditor(colPx, numCols){
     colTa.dataset.col = String(c);
     colTa.dataset.startLine = String(c * linesPerCol);
 
+    colTa.readOnly = true;
+    colTa.style.cursor = 'default';
     colTa.addEventListener('input', onColInput);
     colTa.addEventListener('click', e => {
       e.stopPropagation();
