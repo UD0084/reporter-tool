@@ -610,42 +610,52 @@ function highlightParaInEditor(paraNum){
   if(!hl||!ta||!wrap||!paraNum){if(hl)hl.style.display='none';return;}
 
   const text=ta.value;
-  const lines=text.split('\n');
   const paras=getParas(text);
   const para=paras.find(p=>p.num===paraNum);
   if(!para){hl.style.display='none';return;}
 
-  // Calculate pixel position of the paragraph line in the textarea
-  // Create a mirror div to measure text height
-  const style=window.getComputedStyle(ta);
-  const mirror=document.createElement('div');
-  mirror.style.cssText=[
-    'position:absolute','visibility:hidden','white-space:pre-wrap','word-break:break-word',
-    `font-family:${style.fontFamily}`,`font-size:${style.fontSize}`,`line-height:${style.lineHeight}`,
-    `width:${ta.clientWidth}px`,`padding:${style.padding}`,
-    'border:'+style.border,'box-sizing:border-box','overflow-wrap:break-word'
-  ].join(';');
-  document.body.appendChild(mirror);
+  // Use a hidden mirror div with exact same styling as textarea
+  let mirror=document.getElementById('editorMirror');
+  if(!mirror){
+    mirror=document.createElement('div');
+    mirror.id='editorMirror';
+    document.body.appendChild(mirror);
+  }
+  const cs=window.getComputedStyle(ta);
+  mirror.style.cssText=`position:fixed;top:-9999px;left:-9999px;visibility:hidden;`+
+    `font-family:${cs.fontFamily};font-size:${cs.fontSize};line-height:${cs.lineHeight};`+
+    `width:${ta.clientWidth}px;padding:0;border:none;box-sizing:border-box;`+
+    `white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;`;
 
-  // Measure height up to the paragraph line
-  const beforeText=lines.slice(0,para.lineIdx).join('\n')+(para.lineIdx>0?'\n':'');
-  mirror.textContent=beforeText||' ';
-  const topPx=beforeText?mirror.scrollHeight:0;
+  const lineH=parseFloat(cs.lineHeight)||30;
+  const edPad=36;
 
-  // Measure height of just this line
-  mirror.textContent=beforeText+para.text;
-  const bottomPx=mirror.scrollHeight;
-  document.body.removeChild(mirror);
+  // Measure top of paragraph
+  const allLines=text.split('\n');
+  const beforeLines=allLines.slice(0,para.lineIdx);
+  mirror.textContent=beforeLines.join('\n')+(beforeLines.length?'\n':'');
+  const topPx=beforeLines.length?mirror.offsetHeight:0;
 
-  const editorPadding=36; // matches padding:36px 32px
+  // Measure bottom of paragraph
+  mirror.textContent=beforeLines.join('\n')+(beforeLines.length?'\n':'')+para.text;
+  const bottomPx=mirror.offsetHeight;
+
+  const top=edPad+topPx-ta.scrollTop;
+  const height=Math.max(lineH,bottomPx-topPx)+4;
+
   hl.style.display='block';
-  hl.style.top=(editorPadding+topPx-ta.scrollTop)+'px';
-  hl.style.height=(bottomPx-topPx+4)+'px';
+  hl.style.top=top+'px';
+  hl.style.height=height+'px';
   hl.style.left='28px';
   hl.style.right='28px';
 
-  // Scroll editor to show the paragraph
-  ta.scrollTop=Math.max(0,editorPadding+topPx-wrap.clientHeight/3);
+  // Scroll so paragraph is visible
+  const scrollTarget=edPad+topPx-wrap.clientHeight/3;
+  ta.scrollTop=Math.max(0,scrollTarget);
+  // Re-adjust after scroll
+  setTimeout(()=>{
+    hl.style.top=(edPad+topPx-ta.scrollTop)+'px';
+  },50);
 }
 
 function onSourceCardClick(id){
@@ -707,8 +717,8 @@ function renderStockPane(){
       ${item.quote?`<div class="sc-quote" style="font-size:11px">${esc(item.quote.slice(0,120))}${item.quote.length>120?'…':''}</div>`:''}
       ${item.url?`<div class="sc-url"><a href="${esc(item.url)}" target="_blank">${esc(item.url)}</a></div>`:''}
       <div class="sc-actions">
-        ${isStock?`<button class="sbtn" onclick="openMoveToArticlePicker('${item.id}','stock','')"><i class="ti ti-transfer" style="font-size:10px"></i>案件へ移動</button><button class="sbtn" onclick="openEditStock('${item.id}')"><i class="ti ti-edit" style="font-size:10px"></i>編集</button>`:''}
-        ${!isStock?`<button class="sbtn" onclick="openMoveToArticlePicker('${item.id}','source','${item._artId}')"><i class="ti ti-transfer" style="font-size:10px"></i>案件へ移動</button><button class="sbtn" onclick="moveSourceToStockById('${item._artId}','${item.id}')"><i class="ti ti-bookmark" style="font-size:10px"></i>ストックへ</button>`:''}
+        ${isStock?`<button class="sbtn" onclick="openMoveToArticlePicker('${item.id}','stock','')"><i class="ti ti-copy" style="font-size:10px"></i>案件にコピー</button><button class="sbtn" onclick="openEditStock('${item.id}')"><i class="ti ti-edit" style="font-size:10px"></i>編集</button>`:''}
+        ${!isStock?`<button class="sbtn" onclick="openMoveToArticlePicker('${item.id}','source','${item._artId}')"><i class="ti ti-copy" style="font-size:10px"></i>他の案件にコピー</button><button class="sbtn" onclick="moveSourceToStockById('${item._artId}','${item.id}')"><i class="ti ti-bookmark" style="font-size:10px"></i>ストックへ</button>`:''}
       </div>
     </div>`;
   }).join('');
@@ -741,7 +751,7 @@ function openMoveToArticlePicker(itemId,kind,fromArtId){
   if(!activeArts.length){alert('案件がありません。先に案件を作成してください。');return;}
   let existing=document.getElementById('moveToArtModal');if(existing)existing.remove();
   const modal=document.createElement('div');modal.id='moveToArtModal';modal.className='modal-bg';modal.style.zIndex='400';
-  modal.innerHTML=`<div class="modal" style="width:420px"><h2><i class="ti ti-transfer"></i> どの案件に移動しますか？</h2>
+  modal.innerHTML=`<div class="modal" style="width:420px"><h2><i class="ti ti-copy"></i> どの案件にコピーしますか？（元の場所にも残ります）</h2>
     <div style="max-height:320px;overflow-y:auto;margin-bottom:14px">
       ${activeArts.map(a=>`<div class="ali${a.id===state.currentId?' active':''}" onclick="confirmMoveToArt('${itemId}','${kind}','${fromArtId}','${a.id}')">
         <div><div class="ali-title">${esc(a.title)}</div><div class="ali-meta">${a.createdAt} · 引用${(a.sources||[]).length}件</div></div>
@@ -757,15 +767,23 @@ function confirmMoveToArt(itemId,kind,fromArtId,toArtId){
   document.getElementById('moveToArtModal')?.remove();
   if(kind==='stock'){
     const s=(state.stocks||[]).find(x=>x.id===itemId);if(!s)return;
+    // Copy to article, keep in stock
     toArt.sources.push({id:uid(),url:s.url||'',quote:s.quote||'',translation:'',type:s.type||'その他',note:s.note||'',paraNum:null,sourceKind:'web',tags:s.tags||[]});
-    state.stocks=(state.stocks||[]).filter(x=>x.id!==itemId);
   }else{
     const fromArt=state.articles.find(a=>a.id===fromArtId);if(!fromArt)return;
     const s=fromArt.sources.find(x=>x.id===itemId);if(!s)return;
+    // Copy to target article, keep in source article
     toArt.sources.push({...s,id:uid(),paraNum:null});
-    fromArt.sources=fromArt.sources.filter(x=>x.id!==itemId);
   }
   save(true);renderSources();renderArtList();renderStockPane();updateStockCount();
+  // Show confirmation
+  const toArtTitle=toArt.title;
+  const btn=document.querySelector('#stockPane .source-add-btn');
+  const flash=document.createElement('div');
+  flash.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:10px 20px;border-radius:var(--r);font-size:13px;z-index:500;box-shadow:0 4px 16px rgba(0,0,0,0.15)';
+  flash.textContent=`「${toArtTitle}」にコピーしました`;
+  document.body.appendChild(flash);
+  setTimeout(()=>flash.remove(),2500);
 }
 
 // ── stock add/edit ──
