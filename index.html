@@ -1,46 +1,19 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head><!-- add stock modal -->
-<div class="modal-bg hidden" id="addStockModal">
-  <div class="modal" style="width:500px">
-    <h2><i class="ti ti-bookmarks"></i> ストックに保存</h2>
-    <div class="fl"><label class="flabel">URL</label><input class="fi" id="sUrl" placeholder="https://..."></div>
-    <div class="fl"><label class="flabel">引用テキスト</label><textarea class="fi" id="sQuote" placeholder="気になった部分をペースト"></textarea></div>
-    <div class="fl"><label class="flabel">メモ・タイトル</label><input class="fi" id="sNote" placeholder="何についての記事か、一言メモ"></div>
-    <div class="fl">
-      <label class="flabel">テーマタグ（カンマ区切り）</label>
-      <input class="fi" id="sTags" placeholder="例: イスラエル, 停戦交渉, ネタニヤフ" oninput="showTagSuggestions()">
-      <div id="tagSuggestions" style="display:none;margin-top:4px;display:flex;flex-wrap:wrap;gap:4px"></div>
-      <div style="margin-top:5px" id="existingTagsHint"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="mbtn" onclick="closeModal('addStockModal')">キャンセル</button>
-      <button class="mbtn primary" onclick="saveStock()"><i class="ti ti-check"></i> 保存</button>
-    </div>
-  </div>
-</div>
-
-<script>
-(function(){
-  var PASS_KEY = "reporter_auth_v1";
-  var CORRECT = "press2025";
-  if(sessionStorage.getItem(PASS_KEY) === "ok") return;
-  document.documentElement.style.visibility = "hidden";
-  var entered = prompt("パスワードを入力してください:");
-  if(entered === CORRECT){
-    sessionStorage.setItem(PASS_KEY, "ok");
-    document.documentElement.style.visibility = "";
-  } else {
-    document.documentElement.style.visibility = "";
-    document.open();
-    document.write('<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,sans-serif;color:#888;font-size:14px">アクセスが拒否されました</div>');
-    document.close();
-  }
-})();
-</script>
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>記者原稿ツール</title>
+<script>
+(function(){
+  var PASS_KEY="reporter_auth_v1",CORRECT="press2025";
+  if(sessionStorage.getItem(PASS_KEY)==="ok")return;
+  document.documentElement.style.visibility="hidden";
+  var e=prompt("パスワードを入力してください:");
+  if(e===CORRECT){sessionStorage.setItem(PASS_KEY,"ok");document.documentElement.style.visibility="";}
+  else{document.documentElement.style.visibility="";document.open();document.write('<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,sans-serif;color:#888;font-size:14px">アクセスが拒否されました</div>');document.close();}
+})();
+</script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.14.0/dist/tabler-icons.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -50,11 +23,9 @@
   --bd:rgba(0,0,0,0.08);--bd2:rgba(0,0,0,0.15);--bd3:rgba(0,0,0,0.28);
   --green:#1D9E75;--gbg:#E1F5EE;--gtx:#085041;
   --blue:#185FA5;--bbg:#E6F1FB;--btx:#0C447C;
-  --abg:#FAEEDA;--atx:#633806;
-  --pbg:#EEEDFE;--ptx:#3C3489;
-  --r:8px;--rl:12px;
-  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-  --sidebar:200px;--sources:400px;
+  --abg:#FAEEDA;--atx:#633806;--pbg:#EEEDFE;--ptx:#3C3489;
+  --r:8px;--rl:12px;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --sidebar:200px;--sources:380px;
 }
 @media(prefers-color-scheme:dark){
   :root{--bg:#1e1e1e;--bg2:#262626;--bg3:#2a2a2a;--tx:#e8e8e8;--tx2:#aaa;--tx3:#555;
@@ -62,26 +33,23 @@
 }
 html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--tx);overflow:hidden}
 .shell{display:flex;height:100vh;flex-direction:column}
-
-/* topbar */
 .topbar{height:44px;background:var(--bg);border-bottom:0.5px solid var(--bd);display:flex;align-items:center;padding:0 12px;gap:8px;flex-shrink:0}
-.topbar-title{font-size:13px;font-weight:600;color:var(--tx2);letter-spacing:0.02em;margin-right:4px}
+.topbar-title{font-size:13px;font-weight:600;color:var(--tx2);margin-right:4px}
 .topbar-sep{width:0.5px;height:18px;background:var(--bd2);flex-shrink:0}
 .tbtn{padding:5px 11px;border-radius:var(--r);border:0.5px solid var(--bd2);background:transparent;cursor:pointer;font-size:12px;color:var(--tx2);font-family:var(--font);display:flex;align-items:center;gap:4px;white-space:nowrap}
 .tbtn:hover{background:var(--bg2);color:var(--tx)}
 .tbtn.primary{background:var(--green);color:#fff;border-color:var(--green)}
 .tbtn.primary:hover{opacity:0.88}
+.tbtn.active{background:var(--bbg);color:var(--btx);border-color:#B5D4F4}
 .save-status{font-size:11px;color:var(--green);min-width:56px;font-weight:500}
-
 .workspace{display:flex;flex:1;overflow:hidden}
-
-/* ── sidebar ── */
+/* sidebar */
 .sidebar{width:var(--sidebar);background:var(--bg2);border-right:0.5px solid var(--bd);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;min-height:0}
-.sidebar-head{padding:10px 12px 6px;border-bottom:0.5px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.sidebar-head{padding:10px 12px 6px;border-bottom:0.5px solid var(--bd);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .sidebar-head span{font-size:11px;font-weight:500;color:var(--tx3);text-transform:uppercase;letter-spacing:0.05em}
 .new-art-btn{font-size:11px;padding:2px 8px;border-radius:var(--r);border:0.5px solid var(--bd2);background:transparent;cursor:pointer;color:var(--tx2);font-family:var(--font);display:flex;align-items:center;gap:3px}
 .new-art-btn:hover{background:var(--green);color:#fff;border-color:var(--green)}
-.art-list{flex:1;overflow-y:auto;padding:6px;min-height:0}
+.art-list{overflow-y:auto;padding:6px}
 .art-item{padding:7px 9px;border-radius:var(--r);cursor:pointer;margin-bottom:2px;border:0.5px solid transparent;position:relative}
 .art-item:hover{background:var(--bg);border-color:var(--bd)}
 .art-item.active{background:var(--bg);border-color:var(--green);border-width:1.5px}
@@ -96,25 +64,13 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 .status-review{background:var(--abg);color:var(--atx)}
 .status-done{background:var(--gbg);color:var(--gtx)}
 .status-hold{background:var(--bg3);color:var(--tx3);border:0.5px solid var(--bd2)}
-.sidebar-stock-head{padding:8px 12px;border-top:0.5px solid var(--bd);display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-size:11px;font-weight:500;color:var(--tx2);text-transform:uppercase;letter-spacing:0.05em;flex-shrink:0}
-.sidebar-stock-head:hover{background:var(--bg)}
-.stock-item{padding:7px 9px;border-radius:var(--r);margin-bottom:3px;border:0.5px solid var(--bd);background:var(--bg);font-size:11px}
-.stock-item-title{color:var(--tx);line-height:1.4;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.stock-item-url{color:var(--tx3);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.stock-tag-btn{font-size:10px;padding:2px 8px;border-radius:99px;border:0.5px solid var(--bd2);background:transparent;cursor:pointer;color:var(--tx2);font-family:var(--font)}
-.stock-tag-btn:hover,.stock-tag-btn.active{background:var(--bbg);color:var(--btx);border-color:#B5D4F4}
-
-/* ── editor ── */
+/* editor */
 .editor-pane{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
-
-.editor-textarea{height:100%;min-height:400px;border:none;outline:none;resize:none;font-size:15px;line-height:2;color:var(--tx);background:transparent;font-family:'Georgia',serif;caret-color:var(--green);flex-shrink:0;padding:0 4px}
+.editor-wrap{flex:1;overflow:auto;padding:36px 32px;position:relative}
+.editor-textarea{width:100%;height:100%;min-height:400px;border:none;outline:none;resize:none;font-size:15px;line-height:2;color:var(--tx);background:transparent;font-family:'Georgia',serif;caret-color:var(--green)}
 .editor-textarea::placeholder{color:var(--tx3);font-family:var(--font);font-size:14px}
-.editor-wrap{flex:1;overflow:auto;padding:36px 32px}
-#editorWrap{position:relative}
-#colEditor textarea{border:none;outline:none;resize:none;background:transparent;font-family:Georgia,serif;font-size:15px;line-height:2;color:var(--tx);caret-color:var(--green);padding:0;width:100%;overflow:hidden}
-.editor-footer{padding:5px 48px;border-top:0.5px solid var(--bd);font-size:11px;color:var(--tx3);display:flex;gap:16px;flex-shrink:0;background:var(--bg)}
-
-/* ── source pane ── */
+.editor-footer{padding:5px 32px;border-top:0.5px solid var(--bd);font-size:11px;color:var(--tx3);display:flex;gap:12px;align-items:center;flex-shrink:0;background:var(--bg)}
+/* source pane */
 .source-pane{width:var(--sources);border-left:0.5px solid var(--bd);display:flex;flex-direction:column;background:var(--bg2);flex-shrink:0;overflow:hidden}
 .source-head{padding:9px 14px 7px;border-bottom:0.5px solid var(--bd);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .source-head-title{font-size:12px;font-weight:500;color:var(--tx2)}
@@ -122,20 +78,20 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 .source-add-btn:hover{background:var(--green);color:#fff;border-color:var(--green)}
 .source-body{flex:1;overflow-y:auto;padding:10px 12px}
 .source-empty{text-align:center;padding:40px 16px;color:var(--tx3);font-size:12px;line-height:1.9}
-
+/* stock pane */
+.stock-pane{width:320px;border-left:0.5px solid var(--bd);display:none;flex-direction:column;background:var(--bg2);flex-shrink:0;overflow:hidden}
+.stock-pane.open{display:flex}
 /* source cards */
 .sc{background:var(--bg);border:0.5px solid var(--bd);border-radius:var(--r);padding:10px 12px;margin-bottom:8px;transition:border-color 0.12s,box-shadow 0.12s}
 .sc:hover{border-color:var(--bd2)}
-.sc.highlighted{border:2.5px solid var(--green);box-shadow:0 0 0 3px rgba(29,158,117,0.18);background:#fafffd}
-@media(prefers-color-scheme:dark){.sc.highlighted{background:#1a2e26}}
+.sc.highlighted{border:2.5px solid var(--green);box-shadow:0 0 0 3px rgba(29,158,117,0.15);background:#fafffd}
 .sc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:5px}
 .stag{font-size:10px;padding:2px 7px;border-radius:var(--r);font-weight:500;display:inline-block}
 .t-sns{background:var(--bbg);color:var(--btx)}.t-un{background:var(--gbg);color:var(--gtx)}
 .t-research{background:var(--abg);color:var(--atx)}.t-media{background:var(--pbg);color:var(--ptx)}
-.t-other{background:var(--bg2);color:var(--tx2)}
-.t-interview{background:#F0EDF8;color:#4A3880}
+.t-interview{background:#F0EDF8;color:#4A3880}.t-other{background:var(--bg2);color:var(--tx2)}
 .sc-note{font-size:11px;color:var(--tx2);margin-left:4px}
-.sc-para-badge{font-size:10px;padding:2px 7px;border-radius:var(--r);font-weight:500;margin-left:4px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:opacity 0.1s}
+.sc-para-badge{font-size:10px;padding:2px 7px;border-radius:var(--r);font-weight:500;margin-left:4px;cursor:pointer;display:inline-flex;align-items:center;gap:3px}
 .sc-para-badge.linked{background:var(--gbg);color:var(--gtx);border:1px solid #9FE1CB}
 .sc-para-badge.unlinked{background:var(--bg2);color:var(--tx3);border:0.5px dashed var(--bd2)}
 .sc-para-badge:hover{opacity:0.72}
@@ -149,19 +105,12 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 .sbtn{font-size:11px;padding:3px 8px;border:0.5px solid var(--bd);border-radius:var(--r);background:transparent;cursor:pointer;color:var(--tx2);display:flex;align-items:center;gap:3px;font-family:var(--font)}
 .sbtn:hover{background:var(--bg2);color:var(--tx)}
 .sbtn.del:hover{color:#E24B4A;border-color:#F7C1C1;background:#FCEBEB}
-.sbtn.verify-btn{color:var(--blue);border-color:#B5D4F4}
-.sbtn.verify-btn:hover{background:var(--bbg)}
-.sc-verify-result{font-size:11px;margin-top:7px;padding:7px 9px;background:var(--bg2);border-radius:var(--r);line-height:1.6}
-.vstatus{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:var(--r);font-weight:500}
-.s-ok{background:var(--gbg);color:var(--gtx)}.s-warn{background:var(--abg);color:var(--atx)}.s-pend{background:var(--bg2);color:var(--tx2)}
+.sc-verify-result{font-size:11px;margin-top:6px;padding:6px 8px;background:var(--bg2);border-radius:var(--r);line-height:1.5}
 .spinner{display:inline-block;width:10px;height:10px;border:2px solid var(--bd2);border-top-color:var(--tx2);border-radius:50%;animation:spin 0.6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-
-/* pending banner */
 .pending-banner{background:var(--gbg);border:0.5px solid #9FE1CB;border-radius:var(--r);padding:9px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
 .pending-banner p{font-size:12px;color:var(--gtx)}
 .pending-banner button{font-size:11px;padding:3px 10px;background:var(--green);color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-family:var(--font)}
-
 /* para picker */
 .para-picker{position:fixed;z-index:300;background:var(--bg);border:0.5px solid var(--bd2);border-radius:var(--r);box-shadow:0 4px 20px rgba(0,0,0,0.14);width:260px;max-height:300px;overflow-y:auto}
 .para-picker-head{padding:8px 12px;border-bottom:0.5px solid var(--bd);font-size:11px;font-weight:500;color:var(--tx2);background:var(--bg2)}
@@ -171,12 +120,6 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 .para-picker-item .pnum{font-size:10px;font-weight:600;color:var(--tx3);margin-bottom:2px}
 .para-picker-unlink{padding:8px 12px;cursor:pointer;font-size:12px;color:var(--tx3);display:flex;align-items:center;gap:5px;border-top:0.5px solid var(--bd)}
 .para-picker-unlink:hover{background:var(--bg2);color:var(--tx)}
-
-/* src tabs */
-.src-tab{padding:7px 16px;border:none;background:transparent;cursor:pointer;font-size:12px;color:var(--tx2);font-family:var(--font);border-bottom:2px solid transparent;margin-bottom:-0.5px;display:flex;align-items:center;gap:5px}
-.src-tab:hover{color:var(--tx)}
-.src-tab.active{color:var(--green);border-bottom-color:var(--green);font-weight:500}
-
 /* modals */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.32);z-index:200;display:flex;align-items:center;justify-content:center}
 .modal-bg.hidden{display:none}
@@ -193,76 +136,74 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 .fi:focus{border-color:var(--bd3)}
 textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-
-/* verify modal */
-.vc{background:var(--bg2);border-radius:var(--r);padding:11px 13px;margin-bottom:10px;border:0.5px solid var(--bd)}
-.vc.ok{border-color:#9FE1CB}.vc.warn{border-color:#FAC775}
+.ali{padding:9px 12px;border-radius:var(--r);cursor:pointer;border:0.5px solid transparent;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between}
+.ali:hover{background:var(--bg2);border-color:var(--bd)}
+.ali.active{background:var(--gbg);border-color:#9FE1CB}
+.ali-title{font-size:13px;font-weight:500}
+.ali-meta{font-size:11px;color:var(--tx3);margin-top:1px}
+/* src tabs */
+.src-tab{padding:7px 14px;border:none;background:transparent;cursor:pointer;font-size:12px;color:var(--tx2);font-family:var(--font);border-bottom:2px solid transparent;margin-bottom:-0.5px;display:flex;align-items:center;gap:5px}
+.src-tab:hover{color:var(--tx)}
+.src-tab.active{color:var(--green);border-bottom-color:var(--green);font-weight:500}
+/* stock */
+.stock-tag-btn{font-size:10px;padding:2px 8px;border-radius:99px;border:0.5px solid var(--bd2);background:transparent;cursor:pointer;color:var(--tx2);font-family:var(--font)}
+.stock-tag-btn:hover,.stock-tag-btn.active{background:var(--bbg);color:var(--btx);border-color:#B5D4F4}
 </style>
 </head>
 <body>
 <div class="shell">
-  <!-- topbar -->
-  <div class="topbar">
+  <div class="topbar" id="topbar">
     <span class="topbar-title">記者原稿</span>
     <div class="topbar-sep"></div>
     <button class="tbtn primary" onclick="saveArticle()"><i class="ti ti-device-floppy"></i> 保存</button>
     <span class="save-status" id="saveStatus"></span>
     <div id="readonlyLabel" style="display:none;align-items:center;gap:6px;padding:4px 12px;background:var(--bbg);border-radius:var(--r);border:0.5px solid #B5D4F4;font-size:12px;font-weight:500;color:var(--btx)">
-      <i class="ti ti-eye" style="font-size:13px"></i> 閲覧モード（編集するにはスライダーを25字以上に）
+      <i class="ti ti-eye" style="font-size:13px"></i> 閲覧モード（編集は25字以上に）
     </div>
     <div style="flex:1"></div>
     <button class="tbtn" onclick="openAddSourceModal(null)"><i class="ti ti-plus"></i> 引用元を追加</button>
-    <button class="tbtn" id="stockPaneBtn" onclick="toggleStockPane()"><i class="ti ti-bookmarks"></i> ストック<span id="stockCount" style="margin-left:4px;background:var(--bbg);color:var(--btx);font-size:10px;padding:1px 6px;border-radius:99px;font-weight:600"></span></button>
+    <button class="tbtn" id="stockBtn" onclick="toggleStockPane()"><i class="ti ti-bookmarks"></i> ストック<span id="stockCount" style="margin-left:4px;background:var(--bbg);color:var(--btx);font-size:10px;padding:1px 6px;border-radius:99px;font-weight:600;display:none"></span></button>
     <button class="tbtn" onclick="copyAllForVerify()"><i class="ti ti-clipboard-copy"></i> 検証用コピー</button>
   </div>
-
   <div class="workspace">
-    <!-- sidebar: article list -->
+    <!-- sidebar -->
     <div class="sidebar">
       <div class="sidebar-head">
-        <span id="sidebarHeadLabel">案件</span>
+        <span id="sidebarLabel">案件</span>
         <div style="display:flex;gap:4px">
-          <button class="new-art-btn" id="trashToggleBtn" onclick="toggleTrash()" title="ゴミ箱"><i class="ti ti-trash"></i></button>
+          <button class="new-art-btn" id="trashBtn" onclick="toggleTrash()" title="ゴミ箱"><i class="ti ti-trash"></i></button>
           <button class="new-art-btn" id="newArtBtn" onclick="newArticle()"><i class="ti ti-plus"></i>新規</button>
         </div>
       </div>
-      <div style="flex:1;overflow-y:auto;min-height:0">
-        <div class="art-list" id="artList"></div>
-      </div>
+      <div style="flex:1;overflow-y:auto;min-height:0"><div class="art-list" id="artList"></div></div>
     </div>
-
     <!-- editor -->
     <div class="editor-pane">
-      <div class="editor-wrap" id="editorWrap" style="position:relative">
+      <div class="editor-wrap" id="editorWrap">
         <textarea class="editor-textarea" id="editor" placeholder="原稿をここに入力..."></textarea>
-        <div id="colEditor" style="display:none;width:100%;height:100%;position:absolute;top:0;left:0;overflow:auto;padding:36px 32px;gap:32px;align-items:flex-start;outline:none" onclick="colEditorClick(event)"></div>
+        <div id="colEditor" style="display:none;width:100%;height:100%;position:absolute;top:0;left:0;overflow:auto;padding:36px 32px;gap:32px;align-items:flex-start"></div>
       </div>
       <div class="editor-footer">
-        <div style="display:flex;align-items:center;gap:10px;flex:1">
-          <i class="ti ti-columns" style="font-size:13px;color:var(--tx3)" aria-hidden="true"></i>
-          <input type="range" id="colWidthSlider" min="8" max="48" value="48" step="1"
-            style="width:120px" oninput="updateColWidth(this.value)">
-          <span id="colWidthLabel" style="font-size:11px;color:var(--tx2);min-width:36px">48字</span>
-        </div>
-        <div style="display:flex;gap:16px;align-items:center">
-          <span id="charCount" style="font-size:16px;font-weight:600;color:var(--tx)">0 文字</span>
-          <span id="lineCount" style="font-size:16px;font-weight:600;color:var(--tx)">0 行</span>
-          <span id="paraCount" style="font-size:16px;font-weight:600;color:var(--tx)">0 段落</span>
-          <span id="activeParaInfo" style="font-size:11px;color:var(--green);font-weight:500"></span>
-        </div>
+        <i class="ti ti-columns" style="font-size:13px;color:var(--tx3)"></i>
+        <input type="range" id="colSlider" min="8" max="48" value="48" step="1" style="width:100px" oninput="updateColWidth(this.value)">
+        <span id="colWidthLabel" style="font-size:11px;color:var(--tx2);min-width:32px">48字</span>
+        <div style="flex:1"></div>
+        <span id="charCount" style="font-size:15px;font-weight:600">0 文字</span>
+        <span id="lineCount" style="font-size:15px;font-weight:600">0 行</span>
+        <span id="paraCount" style="font-size:15px;font-weight:600">0 段落</span>
+        <span id="activeParaInfo" style="font-size:11px;color:var(--green);font-weight:500"></span>
       </div>
     </div>
-
     <!-- stock pane -->
-    <div id="stockPane" style="display:none;width:320px;border-left:0.5px solid var(--bd);display:none;flex-direction:column;background:var(--bg2);flex-shrink:0;overflow:hidden">
+    <div class="stock-pane" id="stockPane">
       <div style="padding:9px 14px 0;border-bottom:0.5px solid var(--bd);flex-shrink:0">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <span style="font-size:12px;font-weight:500;color:var(--tx2)">ストック・引用元一覧</span>
           <button class="sbtn" onclick="toggleStockPane()"><i class="ti ti-x" style="font-size:12px"></i></button>
         </div>
-        <div style="display:flex;gap:0">
-          <div id="stab-all" class="src-tab active" style="cursor:pointer" onclick="switchStockTab('all')"><i class="ti ti-database" style="font-size:12px"></i> 全て</div>
-          <div id="stab-unused" class="src-tab" style="cursor:pointer" onclick="switchStockTab('unused')"><i class="ti ti-bookmark" style="font-size:12px"></i> 未使用</div>
+        <div style="display:flex;gap:0;border-bottom:0.5px solid var(--bd2)">
+          <div id="stab-all" class="src-tab active" onclick="switchStockTab('all')"><i class="ti ti-database" style="font-size:12px"></i> 全て</div>
+          <div id="stab-unused" class="src-tab" onclick="switchStockTab('unused')"><i class="ti ti-bookmark" style="font-size:12px"></i> 未使用</div>
         </div>
       </div>
       <div style="padding:6px 10px;border-bottom:0.5px solid var(--bd);flex-shrink:0;display:flex;gap:4px;flex-wrap:wrap;align-items:center">
@@ -272,7 +213,6 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
       </div>
       <div id="stockBody" style="flex:1;overflow-y:auto;padding:10px 12px"></div>
     </div>
-
     <!-- source pane -->
     <div class="source-pane">
       <div class="source-head">
@@ -284,7 +224,6 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
   </div>
 </div>
 
-<!-- para picker -->
 <div id="paraPicker" class="para-picker" style="display:none"></div>
 
 <!-- add/edit source modal -->
@@ -292,44 +231,31 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
   <div class="modal" style="width:600px">
     <h2 id="addSourceTitle">引用元を追加</h2>
     <div style="display:flex;gap:0;border-bottom:0.5px solid var(--bd2);margin-bottom:16px">
-      <div id="tab-web" class="src-tab active" style="cursor:pointer" onclick="switchSrcTab('web')">
-        <i class="ti ti-link"></i> ウェブ・SNS
-      </div>
-      <div id="tab-interview" class="src-tab" style="cursor:pointer" onclick="switchSrcTab('interview')">
-        <i class="ti ti-microphone"></i> インタビュー・独自メモ
-      </div>
+      <div id="tab-web" class="src-tab active" onclick="switchSrcTab('web')"><i class="ti ti-link"></i> ウェブ・SNS</div>
+      <div id="tab-interview" class="src-tab" onclick="switchSrcTab('interview')"><i class="ti ti-microphone"></i> インタビュー・独自メモ</div>
     </div>
-
-    <!-- web tab -->
     <div id="srcForm-web">
       <div class="row2 fl">
         <div><label class="flabel">URL</label><input class="fi" id="nUrl" placeholder="https://..."></div>
-        <div><label class="flabel">種別</label>
-          <select class="fi" id="nType"><option>SNS/X</option><option>国連・公式</option><option>研究機関</option><option>メディア</option><option>その他</option></select>
-        </div>
+        <div><label class="flabel">種別</label><select class="fi" id="nType"><option>SNS/X</option><option>国連・公式</option><option>研究機関</option><option>メディア</option><option>その他</option></select></div>
       </div>
       <div class="fl"><label class="flabel">引用テキスト（原文）</label><textarea class="fi" id="nQuote" placeholder="引用したい原文をペースト"></textarea></div>
-      <div class="fl"><label class="flabel">和訳メモ（任意）</label><textarea class="fi" id="nTrans" placeholder="自分の訳をメモ" style="min-height:44px"></textarea></div>
+      <div class="fl"><label class="flabel">和訳メモ（任意）</label><textarea class="fi" id="nTrans" style="min-height:44px" placeholder="自分の訳をメモ"></textarea></div>
       <div class="fl"><label class="flabel">備考</label><input class="fi" id="nNote" placeholder="誰の発言か、文脈など"></div>
     </div>
-
-    <!-- interview tab -->
     <div id="srcForm-interview" style="display:none">
       <div class="row2 fl">
         <div><label class="flabel">発言者・情報源</label><input class="fi" id="iWho" placeholder="例: 山田太郎・外務省高官"></div>
         <div><label class="flabel">日時</label><input class="fi" id="iDate" placeholder="例: 2025年5月20日 14:30"></div>
       </div>
       <div class="row2 fl">
-        <div><label class="flabel">場所・手段</label><input class="fi" id="iPlace" placeholder="例: 東京・電話取材・メール"></div>
-        <div><label class="flabel">ファイル名（任意）</label><input class="fi" id="iFile" placeholder="例: interview_yamada_0520.docx"></div>
+        <div><label class="flabel">場所・手段</label><input class="fi" id="iPlace" placeholder="例: 東京・電話取材"></div>
+        <div><label class="flabel">ファイル名（任意）</label><input class="fi" id="iFile" placeholder="例: memo_0520.docx"></div>
       </div>
-      <div class="fl"><label class="flabel">発言・メモ内容</label><textarea class="fi" id="iQuote" placeholder="発言内容やメモをここに入力" style="min-height:100px"></textarea></div>
-      <div class="fl"><label class="flabel">補足・文脈</label><textarea class="fi" id="iNote" placeholder="取材の背景、オフレコ扱いなど" style="min-height:48px"></textarea></div>
-      <div style="background:var(--abg);border-radius:var(--r);padding:8px 12px;font-size:11px;color:var(--atx);margin-bottom:10px">
-        <i class="ti ti-lock" style="font-size:11px"></i> このデータはブラウザのみに保存されます。外部に送信されません。
-      </div>
+      <div class="fl"><label class="flabel">発言・メモ内容</label><textarea class="fi" id="iQuote" style="min-height:100px" placeholder="発言内容やメモをここに入力"></textarea></div>
+      <div class="fl"><label class="flabel">補足・文脈</label><textarea class="fi" id="iNote" style="min-height:48px" placeholder="取材の背景、オフレコ扱いなど"></textarea></div>
+      <div style="background:var(--abg);border-radius:var(--r);padding:8px 12px;font-size:11px;color:var(--atx);margin-bottom:10px"><i class="ti ti-lock" style="font-size:11px"></i> このデータはブラウザのみに保存されます</div>
     </div>
-
     <div class="modal-footer">
       <button class="mbtn" onclick="closeModal('addSourceModal')">キャンセル</button>
       <button class="mbtn primary" onclick="addSource()"><i class="ti ti-check"></i> 保存</button>
@@ -337,312 +263,571 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
   </div>
 </div>
 
+<!-- add stock modal -->
+<div class="modal-bg hidden" id="addStockModal">
+  <div class="modal" style="width:500px">
+    <h2><i class="ti ti-bookmarks"></i> ストックに保存</h2>
+    <div class="fl"><label class="flabel">URL</label><input class="fi" id="sUrl" placeholder="https://..."></div>
+    <div class="fl"><label class="flabel">引用テキスト</label><textarea class="fi" id="sQuote" placeholder="気になった部分をペースト"></textarea></div>
+    <div class="fl"><label class="flabel">メモ・タイトル</label><input class="fi" id="sNote" placeholder="何についての記事か、一言メモ"></div>
+    <div class="fl">
+      <label class="flabel">テーマタグ（カンマ区切り）</label>
+      <input class="fi" id="sTags" placeholder="例: イスラエル, 停戦交渉" oninput="showTagSuggestions()">
+      <div id="existingTagsHint" style="margin-top:5px"></div>
+    </div>
     <div class="modal-footer">
-      <button class="mbtn" onclick="closeModal('verifyModal')">閉じる</button>
-      <button class="mbtn primary" id="runVerifyBtn" onclick="runVerifyAll()"><i class="ti ti-robot"></i> 全件検証開始</button>
+      <button class="mbtn" onclick="closeModal('addStockModal')">キャンセル</button>
+      <button class="mbtn primary" onclick="saveStock()"><i class="ti ti-check"></i> 保存</button>
     </div>
   </div>
 </div>
 
 <script>
-const SK='reporter_v5';
-let state={articles:[],currentId:null};
-let activePara=null;
-let pickerSourceId=null;
+const SK='reporter_v4'; // Keep v4 to preserve existing data
+let state={articles:[],stocks:[],currentId:null};
+let activePara=null,currentColWidth=48,pickerSourceId=null;
+let showingTrash=false,stockPaneVisible=false,stockTab='all',stockTagFilter=null;
 
-// ── stock pane ──
-let stockTagFilter = null;
-let stockTab = 'all'; // 'all' or 'unused'
-let stockPaneVisible = false;
-
-function toggleStockPane(){
-  stockPaneVisible = !stockPaneVisible;
-  const pane = document.getElementById('stockPane');
-  const btn = document.getElementById('stockPaneBtn');
-  pane.style.display = stockPaneVisible ? 'flex' : 'none';
-  pane.style.flexDirection = stockPaneVisible ? 'column' : '';
-  if(btn) btn.classList.toggle('active', stockPaneVisible);
-  if(stockPaneVisible) renderStockPane();
-}
-
-function switchStockTab(tab){
-  stockTab = tab;
-  document.getElementById('stab-all').classList.toggle('active', tab==='all');
-  document.getElementById('stab-unused').classList.toggle('active', tab==='unused');
-  renderStockPane();
-}
-
-function renderStockPane(){
-  if(!stockPaneVisible) return;
-  const stocks = state.stocks || [];
-
-  // Build unified list: stock items + all article sources
-  let allItems = [];
-
-  // Stock items (unattached)
-  stocks.forEach(s=>{
-    allItems.push({...s, _kind:'stock', _artTitle:null});
-  });
-
-  // Article sources
-  if(stockTab === 'all'){
-    (state.articles||[]).filter(a=>!a.deleted).forEach(art=>{
-      (art.sources||[]).forEach(s=>{
-        allItems.push({...s, _kind:'source', _artTitle:art.title, _artId:art.id, tags:s.tags||[]});
-      });
+// ── persistence ──
+function load(){
+  try{const d=localStorage.getItem(SK);if(d)state=JSON.parse(d);}catch(e){}
+  // Also try older keys to recover data
+  if(!state.articles.length){
+    ['reporter_v5','reporter_v3','reporter_v2'].forEach(k=>{
+      if(state.articles.length)return;
+      try{const d=localStorage.getItem(k);if(d){const s=JSON.parse(d);if(s.articles&&s.articles.length){state.articles=s.articles;state.stocks=s.stocks||[];}}}catch(e){}
     });
   }
+  if(!state.stocks)state.stocks=[];
+  if(!state.articles.length)newArticle(true);
+  else{renderArtList();renderEditor();renderSources();}
+  checkPending();updateStockCount();
+}
+function save(silent){
+  const art=getCurrentArticle();if(art)art.text=document.getElementById('editor').value;
+  try{localStorage.setItem(SK,JSON.stringify(state));}catch(e){}
+  if(!silent){const el=document.getElementById('saveStatus');el.textContent='保存済み ✓';setTimeout(()=>el.textContent='',2200);}
+}
+function autoSave(){
+  const art=getCurrentArticle();if(art){art.text=document.getElementById('editor').value;updateFooter();}
+  try{localStorage.setItem(SK,JSON.stringify(state));}catch(e){}
+}
+function saveArticle(){save(false);}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+function tagClass(t){return({'SNS/X':'t-sns','国連・公式':'t-un','研究機関':'t-research','メディア':'t-media','独自取材':'t-interview','その他':'t-other'}[t]||'t-other');}
+function getCurrentArticle(){return state.articles.find(a=>a.id===state.currentId)||null;}
+function getParas(text){const r=[];(text||'').split('\n').forEach((l,i)=>{if(l.trim())r.push({num:r.length+1,text:l.trim(),lineIdx:i});});return r;}
 
-  // Tag filter
-  const allTags = [...new Set(allItems.flatMap(s=>s.tags||[]))];
-  const tagBar = document.getElementById('stockTagBar');
-  tagBar.innerHTML = [
-    `<button class="stock-tag-btn${!stockTagFilter?' active':''}" onclick="setStockTag(null)" style="font-size:10px">すべて</button>`,
-    ...allTags.map(t=>`<button class="stock-tag-btn${stockTagFilter===t?' active':''}" onclick="setStockTag('${esc(t)}')" style="font-size:10px">${esc(t)}</button>`)
-  ].join('');
-
-  const filtered = stockTagFilter ? allItems.filter(s=>(s.tags||[]).includes(stockTagFilter)) : allItems;
-
-  updateStockCount();
-
-  const body = document.getElementById('stockBody');
-  if(!filtered.length){
-    body.innerHTML=`<div class="source-empty">${stockTab==='unused'?'未使用のストックがありません':'引用元がありません'}</div>`;
+// ── articles ──
+const STATUS_LIST=['writing','review','done','hold'];
+const STATUS_LABELS={writing:'作業中',review:'確認中',done:'済み',hold:'保留'};
+function statusLabel(s){return STATUS_LABELS[s]||'作業中';}
+function cycleStatus(id,e){
+  e.stopPropagation();
+  const art=state.articles.find(a=>a.id===id);if(!art)return;
+  const i=STATUS_LIST.indexOf(art.status||'writing');
+  art.status=STATUS_LIST[(i+1)%STATUS_LIST.length];
+  save(true);renderArtList();
+}
+function newArticle(silent){
+  if(showingTrash)return;
+  const a={id:uid(),title:'新規案件 '+(state.articles.filter(a=>!a.deleted).length+1),createdAt:new Date().toLocaleDateString('ja'),text:'',sources:[],status:'writing'};
+  state.articles.unshift(a);state.currentId=a.id;activePara=null;
+  save(true);renderArtList();renderEditor();renderSources();
+}
+function selectArticle(id){
+  if(showingTrash)return;
+  if(state.currentId===id)return;
+  save(true);state.currentId=id;activePara=null;
+  renderArtList();renderEditor();renderSources();
+}
+function deleteArticle(id,e){
+  e.stopPropagation();
+  if(!confirm('ゴミ箱に移動しますか？'))return;
+  const art=state.articles.find(a=>a.id===id);
+  if(art){art.deleted=true;art.deletedAt=new Date().toLocaleString('ja');}
+  if(state.currentId===id){const next=state.articles.find(a=>!a.deleted);state.currentId=next?.id||null;}
+  save(true);renderArtList();renderEditor();renderSources();
+}
+function restoreArticle(id,e){e.stopPropagation();const art=state.articles.find(a=>a.id===id);if(art){art.deleted=false;art.deletedAt=null;}save(true);renderArtList();}
+function permanentDelete(id,e){
+  e.stopPropagation();
+  if(!confirm('完全に削除します。元に戻せません。'))return;
+  state.articles=state.articles.filter(a=>a.id!==id);save(true);renderArtList();
+}
+function toggleTrash(){
+  showingTrash=!showingTrash;
+  const btn=document.getElementById('trashBtn'),label=document.getElementById('sidebarLabel'),newBtn=document.getElementById('newArtBtn');
+  if(showingTrash){btn.style.cssText='background:var(--abg);color:var(--atx);border-color:#FAC775';label.textContent='ゴミ箱';newBtn.style.display='none';}
+  else{btn.style.cssText='';label.textContent='案件';newBtn.style.display='';}
+  renderArtList();
+}
+function startRename(id,e){
+  e.stopPropagation();
+  const art=state.articles.find(a=>a.id===id);if(!art)return;
+  const el=document.getElementById('at_'+id);if(!el)return;
+  el.contentEditable='true';el.focus();
+  const range=document.createRange();range.selectNodeContents(el);
+  const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);
+  el.onblur=()=>{art.title=el.innerText.trim()||art.title;el.contentEditable='false';save(true);renderArtList();};
+  el.onkeydown=e2=>{if(e2.key==='Enter'){e2.preventDefault();el.blur();}};
+}
+function renderArtList(){
+  const el=document.getElementById('artList');
+  const list=showingTrash?state.articles.filter(a=>a.deleted):state.articles.filter(a=>!a.deleted);
+  if(!list.length){el.innerHTML=`<div style="padding:12px;font-size:11px;color:var(--tx3);text-align:center">${showingTrash?'ゴミ箱は空です':'案件がありません'}</div>`;return;}
+  if(showingTrash){
+    el.innerHTML=list.map(a=>`<div class="art-item" style="opacity:0.75">
+      <div class="art-item-title">${esc(a.title)}</div>
+      <div class="art-item-meta">${a.deletedAt||''}</div>
+      <div style="display:flex;gap:4px;margin-top:5px">
+        <button class="new-art-btn" style="flex:1;justify-content:center" onclick="restoreArticle('${a.id}',event)"><i class="ti ti-restore"></i>復元</button>
+        <button class="new-art-btn" style="flex:1;justify-content:center;color:#E24B4A;border-color:#F7C1C1" onclick="permanentDelete('${a.id}',event)"><i class="ti ti-trash-x"></i>完全削除</button>
+      </div></div>`).join('');
     return;
   }
+  el.innerHTML=list.map(a=>`<div class="art-item${a.id===state.currentId?' active':''}" onclick="selectArticle('${a.id}')">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
+      <div class="art-item-title" id="at_${a.id}" ondblclick="startRename('${a.id}',event)">${esc(a.title)}</div>
+      <button class="art-item-del" onclick="deleteArticle('${a.id}',event)"><i class="ti ti-trash" style="font-size:11px"></i></button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:3px">
+      <div class="art-item-meta">${a.createdAt} · 引用${(a.sources||[]).length}件</div>
+      <span class="status-badge status-${a.status||'writing'}" onclick="cycleStatus('${a.id}',event)">${statusLabel(a.status||'writing')}</span>
+    </div></div>`).join('');
+}
 
-  body.innerHTML = filtered.map(item=>{
-    const isStock = item._kind==='stock';
-    const artLabel = item._artTitle
-      ? `<span style="font-size:9px;background:var(--gbg);color:var(--gtx);padding:1px 5px;border-radius:99px">${esc(item._artTitle)}</span>`
-      : `<span style="font-size:9px;background:var(--bg2);color:var(--tx3);padding:1px 5px;border-radius:99px;border:0.5px dashed var(--bd2)">未使用</span>`;
-    return `<div class="sc" style="margin-bottom:8px">
-      <div class="sc-top">
-        <div style="flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:3px">
-          <span class="stag ${tagClass(item.type||'その他')}">${esc(item.type||'その他')}</span>
-          ${artLabel}
-          ${item.paraNum?`<span style="font-size:9px;background:var(--gbg);color:var(--gtx);padding:1px 5px;border-radius:99px">段落${item.paraNum}</span>`:''}
-          ${(item.tags||[]).map(t=>`<span style="font-size:9px;background:var(--bbg);color:var(--btx);padding:1px 5px;border-radius:99px">${esc(t)}</span>`).join('')}
-        </div>
-        <button class="sbtn del" onclick="${isStock?`deleteStock('${item.id}')`:`deleteSourceFromStock('${item._artId}','${item.id}')`}"><i class="ti ti-trash" style="font-size:10px"></i></button>
+// ── editor ──
+function renderEditor(){
+  const art=getCurrentArticle();
+  document.getElementById('editor').value=art?art.text:'';
+  updateFooter();setTimeout(()=>applyColumnLayout(),30);
+}
+function updateFooter(){
+  const art=getCurrentArticle();if(!art)return;
+  const text=art.text||'';const paras=getParas(text);
+  let lines=0;text.split('\n').forEach(l=>{lines+=l.length?Math.ceil(l.length/currentColWidth)||1:1;});
+  document.getElementById('charCount').textContent=text.length.toLocaleString()+' 文字';
+  document.getElementById('lineCount').textContent=lines+' 行';
+  document.getElementById('paraCount').textContent=paras.length+' 段落';
+  if(activePara){const p=paras.find(x=>x.num===activePara);document.getElementById('activeParaInfo').textContent=p?`▌段落${activePara}: 「${p.text.slice(0,20)}${p.text.length>20?'…':''}」`:'';
+  }else{document.getElementById('activeParaInfo').textContent='';}
+}
+function getParaAtCursor(){
+  if(currentColWidth<=24){
+    const focused=document.activeElement;
+    if(focused&&focused.closest&&focused.closest('#colEditor'))return getParaAtCursorCol(focused);
+    return activePara;
+  }
+  const ta=document.getElementById('editor');
+  const pos=ta.selectionStart;
+  const lines=ta.value.substring(0,pos).split('\n');
+  const lineIdx=lines.length-1;
+  const paras=getParas(ta.value);
+  for(let i=paras.length-1;i>=0;i--){if(paras[i].lineIdx<=lineIdx)return paras[i].num;}
+  return null;
+}
+function getParaAtCursorCol(colTa){
+  const pos=colTa.selectionStart;
+  const lineInCol=colTa.value.substring(0,pos).split('\n').length-1;
+  const startLine=parseInt(colTa.dataset.startLine||'0');
+  const absLineIdx=startLine+lineInCol;
+  const ta=document.getElementById('editor');
+  const allLines=ta.value.split('\n');
+  let paraCount=0;
+  for(let i=0;i<=absLineIdx&&i<allLines.length;i++){if(allLines[i].trim())paraCount++;}
+  return paraCount||null;
+}
+const editor=document.getElementById('editor');
+editor.addEventListener('input',autoSave);
+editor.addEventListener('click',()=>{const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}});
+editor.addEventListener('keyup',e=>{
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Home','End','Enter'].includes(e.key)){
+    const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}
+  }
+});
+
+// ── column layout ──
+function updateColWidth(val){
+  currentColWidth=parseInt(val);
+  document.getElementById('colWidthLabel').textContent=val+'字';
+  applyColumnLayout();updateFooter();
+}
+function setReadOnlyMode(on){
+  const topbar=document.getElementById('topbar'),label=document.getElementById('readonlyLabel');
+  if(on){topbar.style.background='var(--bbg)';topbar.style.borderBottom='3px solid var(--blue)';if(label)label.style.display='flex';}
+  else{topbar.style.background='var(--bg)';topbar.style.borderBottom='0.5px solid var(--bd)';if(label)label.style.display='none';}
+}
+function applyColumnLayout(){
+  const ta=document.getElementById('editor'),colEd=document.getElementById('colEditor'),wrap=document.getElementById('editorWrap');
+  if(!ta||!colEd||!wrap)return;
+  if(currentColWidth>24){
+    ta.style.display='';ta.style.position='';ta.style.opacity='';ta.style.width='100%';ta.style.height='100%';ta.style.minHeight='400px';
+    colEd.style.display='none';setReadOnlyMode(false);return;
+  }
+  const sp=document.createElement('span');sp.style.cssText='position:absolute;visibility:hidden;font-family:Georgia,serif;font-size:15px;white-space:pre';
+  sp.textContent='あ'.repeat(currentColWidth);document.body.appendChild(sp);const colPx=sp.offsetWidth;document.body.removeChild(sp);
+  const wrapW=wrap.clientWidth-64;const numCols=Math.max(1,Math.floor((wrapW+32)/(colPx+32)));
+  if(numCols<=1){ta.style.display='';ta.style.position='';colEd.style.display='none';setReadOnlyMode(false);return;}
+  ta.style.display='none';colEd.style.display='flex';renderColEditor(colPx,numCols);setReadOnlyMode(true);
+}
+function renderColEditor(colPx,numCols){
+  const ta=document.getElementById('editor'),colEd=document.getElementById('colEditor');
+  const realLines=ta.value.split('\n');const linesPerCol=Math.ceil(realLines.length/numCols)||1;
+  colEd.innerHTML='';
+  for(let c=0;c<numCols;c++){
+    const colLines=realLines.slice(c*linesPerCol,(c+1)*linesPerCol);
+    const colDiv=document.createElement('div');colDiv.style.cssText=`width:${colPx}px;flex-shrink:0`;
+    const colTa=document.createElement('textarea');
+    colTa.style.cssText=`border:none;outline:none;resize:none;background:transparent;font-family:Georgia,serif;font-size:15px;line-height:2;color:var(--tx);caret-color:var(--green);padding:0;width:${colPx}px;overflow:hidden;white-space:pre-wrap;word-break:break-all;min-height:${(colLines.length+2)*30}px`;
+    colTa.value=colLines.join('\n');colTa.dataset.col=String(c);colTa.dataset.startLine=String(c*linesPerCol);
+    colTa.readOnly=true;colTa.style.cursor='default';
+    colDiv.appendChild(colTa);colEd.appendChild(colDiv);
+  }
+}
+
+// ── source pane ──
+function renderSources(){
+  const art=getCurrentArticle();const body=document.getElementById('sourceBody');const title=document.getElementById('sourceHeadTitle');
+  if(!art){body.innerHTML='<div class="source-empty">案件を選択してください</div>';return;}
+  const pending=window._pendingClips&&window._pendingClips.length;
+  title.textContent=activePara?`段落${activePara}の引用元 / 全${art.sources.length}件`:`引用元一覧 (${art.sources.length}件)`;
+  let html='';
+  if(pending)html+=`<div class="pending-banner"><p><i class="ti ti-clipboard-check"></i> <strong>${window._pendingClips.length}件</strong> 届いています</p><button onclick="importPending()">振り分け</button></div>`;
+  if(!art.sources.length&&!pending){html+='<div class="source-empty"><i class="ti ti-link-off" style="font-size:24px;display:block;margin-bottom:8px"></i>引用元がまだありません</div>';body.innerHTML=html;return;}
+  const sorted=[...art.sources].sort((a,b)=>{const ah=activePara&&a.paraNum===activePara?0:1,bh=activePara&&b.paraNum===activePara?0:1;return ah-bh;});
+  html+=sorted.map(s=>{
+    const isH=activePara&&s.paraNum===activePara;
+    const badge=s.paraNum?`<span class="sc-para-badge linked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link" style="font-size:9px"></i>段落${s.paraNum}</span>`:`<span class="sc-para-badge unlinked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link-off" style="font-size:9px"></i>紐付け</span>`;
+    const isInt=s.sourceKind==='interview';
+    const intMeta=isInt?[s.who?`<strong>${esc(s.who)}</strong>`:'',s.interviewDate?esc(s.interviewDate):'',s.place?esc(s.place):''].filter(Boolean).join(' · '):'';
+    return `<div class="sc${isH?' highlighted':''}" id="sc_${s.id}">
+      <div class="sc-top"><div style="flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:3px"><span class="stag ${tagClass(s.type)}">${esc(s.type)}</span>${badge}${s.note&&!isInt?`<span class="sc-note">${esc(s.note)}</span>`:''}</div>
+      <button class="sbtn del" onclick="deleteSource(event,'${s.id}')"><i class="ti ti-trash" style="font-size:11px"></i></button></div>
+      ${isInt&&intMeta?`<div style="font-size:11px;color:var(--tx);margin-bottom:4px">${intMeta}</div>`:''}
+      ${s.quote?`<div class="sc-quote">${esc(s.quote.length>140?s.quote.slice(0,140)+'…':s.quote)}</div>`:''}
+      ${s.translation?`<div class="sc-trans">和訳: ${esc(s.translation)}</div>`:''}
+      ${!isInt&&s.url?`<div class="sc-url"><a href="${esc(s.url)}" target="_blank">${esc(s.url)}</a></div>`:''}
+      <div class="sc-actions">
+        <button class="sbtn" onclick="copyQuote('${s.id}')"><i class="ti ti-copy" style="font-size:11px"></i>原文コピー</button>
+        <button class="sbtn" onclick="openAddSourceModal('${s.id}')"><i class="ti ti-edit" style="font-size:11px"></i>編集</button>
+        <button class="sbtn" onclick="moveSourceToStock('${s.id}')"><i class="ti ti-bookmark" style="font-size:11px"></i>ストックへ</button>
       </div>
+      <div id="vr_${s.id}"></div>
+    </div>`;
+  }).join('');
+  body.innerHTML=html;
+  if(activePara){const first=body.querySelector('.sc.highlighted');if(first)setTimeout(()=>first.scrollIntoView({behavior:'smooth',block:'nearest'}),50);}
+}
+
+// ── para picker ──
+function openParaPicker(e,sourceId){
+  e.stopPropagation();const art=getCurrentArticle();if(!art)return;
+  pickerSourceId=sourceId;const paras=getParas(art.text);const s=art.sources.find(x=>x.id===sourceId);
+  const picker=document.getElementById('paraPicker');
+  let html=`<div class="para-picker-head">段落を選んで紐付け</div>`;
+  if(!paras.length)html+='<div style="padding:10px 12px;font-size:12px;color:var(--tx3)">原稿に段落がありません</div>';
+  else html+=paras.map(p=>`<div class="para-picker-item${s&&s.paraNum===p.num?' active':''}" onclick="linkToPara(${p.num})"><div class="pnum">段落 ${p.num}</div><div>${esc(p.text.slice(0,50))}${p.text.length>50?'…':''}</div></div>`).join('');
+  if(s&&s.paraNum)html+=`<div class="para-picker-unlink" onclick="linkToPara(null)"><i class="ti ti-link-off" style="font-size:12px"></i>紐付けを解除</div>`;
+  picker.innerHTML=html;picker.style.display='block';
+  const rect=e.target.getBoundingClientRect();let top=rect.bottom+6,left=rect.left;
+  if(left+260>window.innerWidth)left=window.innerWidth-268;if(top+300>window.innerHeight)top=rect.top-306;
+  picker.style.top=top+'px';picker.style.left=left+'px';
+}
+function linkToPara(num){const art=getCurrentArticle();if(!art||!pickerSourceId)return;const s=art.sources.find(x=>x.id===pickerSourceId);if(s)s.paraNum=num||null;save(true);closePicker();renderSources();}
+function closePicker(){document.getElementById('paraPicker').style.display='none';pickerSourceId=null;}
+document.addEventListener('click',e=>{const p=document.getElementById('paraPicker');if(p.style.display!=='none'&&!p.contains(e.target))closePicker();});
+
+// ── add/edit source ──
+let editingSourceId=null,currentSrcTab='web';
+function switchSrcTab(tab){
+  currentSrcTab=tab;
+  document.getElementById('tab-web').classList.toggle('active',tab==='web');
+  document.getElementById('tab-interview').classList.toggle('active',tab==='interview');
+  document.getElementById('srcForm-web').style.display=tab==='web'?'':'none';
+  document.getElementById('srcForm-interview').style.display=tab==='interview'?'':'none';
+}
+function openAddSourceModal(sourceId){
+  editingSourceId=sourceId;const art=getCurrentArticle();
+  if(sourceId){
+    const s=art.sources.find(x=>x.id===sourceId);if(!s)return;
+    document.getElementById('addSourceTitle').textContent='引用元を編集';
+    if(s.sourceKind==='interview'){
+      switchSrcTab('interview');
+      document.getElementById('iWho').value=s.who||'';document.getElementById('iDate').value=s.interviewDate||'';
+      document.getElementById('iPlace').value=s.place||'';document.getElementById('iFile').value=s.fileName||'';
+      document.getElementById('iQuote').value=s.quote||'';document.getElementById('iNote').value=s.note||'';
+    }else{
+      switchSrcTab('web');
+      document.getElementById('nUrl').value=s.url||'';document.getElementById('nType').value=s.type||'その他';
+      document.getElementById('nQuote').value=s.quote||'';document.getElementById('nTrans').value=s.translation||'';
+      document.getElementById('nNote').value=s.note||'';
+    }
+  }else{
+    document.getElementById('addSourceTitle').textContent='引用元を追加';
+    switchSrcTab('web');
+    ['nUrl','nQuote','nTrans','nNote'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('nType').value='その他';
+    ['iWho','iDate','iPlace','iFile','iQuote','iNote'].forEach(id=>document.getElementById(id).value='');
+  }
+  document.getElementById('addSourceModal').classList.remove('hidden');
+}
+function addSource(){
+  const art=getCurrentArticle();if(!art)return;
+  const existing=editingSourceId?art.sources.find(s=>s.id===editingSourceId)?.paraNum||null:activePara||null;
+  let src;
+  if(currentSrcTab==='interview'){
+    const who=document.getElementById('iWho').value.trim(),quote=document.getElementById('iQuote').value.trim();
+    if(!who&&!quote){alert('発言者か発言内容を入力してください');return;}
+    src={id:editingSourceId||uid(),sourceKind:'interview',url:'',who,interviewDate:document.getElementById('iDate').value.trim(),place:document.getElementById('iPlace').value.trim(),fileName:document.getElementById('iFile').value.trim(),quote,translation:'',type:'独自取材',note:document.getElementById('iNote').value.trim(),paraNum:existing};
+  }else{
+    const url=document.getElementById('nUrl').value.trim(),quote=document.getElementById('nQuote').value.trim();
+    if(!url&&!quote){alert('URLか引用テキストを入力してください');return;}
+    src={id:editingSourceId||uid(),sourceKind:'web',url,quote,translation:document.getElementById('nTrans').value.trim(),type:document.getElementById('nType').value,note:document.getElementById('nNote').value.trim(),paraNum:existing};
+  }
+  if(editingSourceId){const idx=art.sources.findIndex(s=>s.id===editingSourceId);if(idx>=0)art.sources[idx]=src;}
+  else art.sources.push(src);
+  save(true);renderSources();renderArtList();closeModal('addSourceModal');
+}
+function deleteSource(e,id){
+  e.stopPropagation();const art=getCurrentArticle();if(!art)return;
+  if(!confirm('削除しますか？'))return;
+  art.sources=art.sources.filter(s=>s.id!==id);save(true);renderSources();renderArtList();
+}
+function copyQuote(id){
+  const art=getCurrentArticle();if(!art)return;const s=art.sources.find(x=>x.id===id);if(!s)return;
+  navigator.clipboard.writeText(s.quote||s.url).catch(()=>{});
+  const btn=document.querySelector(`#sc_${id} .sbtn`);
+  if(btn){const o=btn.innerHTML;btn.innerHTML='<i class="ti ti-check" style="font-size:11px"></i>コピー完了';setTimeout(()=>btn.innerHTML=o,1500);}
+}
+function moveSourceToStock(id){
+  const art=getCurrentArticle();if(!art)return;
+  const s=art.sources.find(x=>x.id===id);if(!s)return;
+  if(!state.stocks)state.stocks=[];
+  state.stocks.unshift({id:uid(),url:s.url||'',quote:s.quote||'',note:s.note||s.who||'',tags:[],savedAt:new Date().toLocaleDateString('ja'),type:s.type});
+  art.sources=art.sources.filter(x=>x.id!==id);
+  save(true);renderSources();renderArtList();renderStockPane();updateStockCount();
+}
+
+// ── stock pane ──
+function toggleStockPane(){
+  stockPaneVisible=!stockPaneVisible;
+  const pane=document.getElementById('stockPane'),btn=document.getElementById('stockBtn');
+  pane.classList.toggle('open',stockPaneVisible);
+  if(btn)btn.classList.toggle('active',stockPaneVisible);
+  if(stockPaneVisible)renderStockPane();
+}
+function switchStockTab(tab){
+  stockTab=tab;
+  document.getElementById('stab-all').classList.toggle('active',tab==='all');
+  document.getElementById('stab-unused').classList.toggle('active',tab==='unused');
+  renderStockPane();
+}
+function renderStockPane(){
+  if(!stockPaneVisible)return;
+  const stocks=state.stocks||[];
+  let allItems=stocks.map(s=>({...s,_kind:'stock',_artTitle:null}));
+  if(stockTab==='all'){
+    (state.articles||[]).filter(a=>!a.deleted).forEach(art=>{
+      (art.sources||[]).forEach(s=>allItems.push({...s,_kind:'source',_artTitle:art.title,_artId:art.id,tags:s.tags||[]}));
+    });
+  }
+  const allTags=[...new Set(allItems.flatMap(s=>s.tags||[]))];
+  const tagBar=document.getElementById('stockTagBar');
+  tagBar.innerHTML=[`<button class="stock-tag-btn${!stockTagFilter?' active':''}" onclick="setStockTag(null)">すべて</button>`,...allTags.map(t=>`<button class="stock-tag-btn${stockTagFilter===t?' active':''}" onclick="setStockTag('${esc(t)}')">${esc(t)}</button>`)].join('');
+  const filtered=stockTagFilter?allItems.filter(s=>(s.tags||[]).includes(stockTagFilter)):allItems;
+  updateStockCount();
+  const body=document.getElementById('stockBody');
+  if(!filtered.length){body.innerHTML=`<div class="source-empty">${stockTab==='unused'?'未使用のストックがありません':'引用元がありません'}</div>`;return;}
+  body.innerHTML=filtered.map(item=>{
+    const isStock=item._kind==='stock';
+    const artLabel=item._artTitle?`<span style="font-size:9px;background:var(--gbg);color:var(--gtx);padding:1px 5px;border-radius:99px">${esc(item._artTitle)}</span>`:`<span style="font-size:9px;background:var(--bg2);color:var(--tx3);padding:1px 5px;border-radius:99px;border:0.5px dashed var(--bd2)">未使用</span>`;
+    return `<div class="sc">
+      <div class="sc-top"><div style="flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:3px"><span class="stag ${tagClass(item.type||'その他')}">${esc(item.type||'その他')}</span>${artLabel}${(item.tags||[]).map(t=>`<span style="font-size:9px;background:var(--bbg);color:var(--btx);padding:1px 5px;border-radius:99px">${esc(t)}</span>`).join('')}</div>
+      <button class="sbtn del" onclick="${isStock?`deleteStock('${item.id}')`:`deleteSourceFromStock('${item._artId}','${item.id}')`}"><i class="ti ti-trash" style="font-size:10px"></i></button></div>
       ${item.note?`<div style="font-size:11px;color:var(--tx2);margin-bottom:3px">${esc(item.note)}</div>`:''}
       ${item.quote?`<div class="sc-quote" style="font-size:11px">${esc(item.quote.slice(0,120))}${item.quote.length>120?'…':''}</div>`:''}
       ${item.url?`<div class="sc-url"><a href="${esc(item.url)}" target="_blank">${esc(item.url)}</a></div>`:''}
       <div class="sc-actions">
-        ${isStock?`<button class="sbtn" onclick="moveStockToSource('${item.id}')"><i class="ti ti-transfer" style="font-size:10px"></i>案件へ移動</button>`:''}
-        ${isStock?`<button class="sbtn" onclick="openEditStock('${item.id}')"><i class="ti ti-edit" style="font-size:10px"></i>編集</button>`:''}
-        ${!isStock?`<button class="sbtn" onclick="moveSourceToStock('${item._artId}','${item.id}')"><i class="ti ti-bookmark" style="font-size:10px"></i>ストックへ</button>`:''}
+        ${isStock?`<button class="sbtn" onclick="openMoveToArticlePicker('${item.id}','stock','')"><i class="ti ti-transfer" style="font-size:10px"></i>案件へ移動</button><button class="sbtn" onclick="openEditStock('${item.id}')"><i class="ti ti-edit" style="font-size:10px"></i>編集</button>`:''}
+        ${!isStock?`<button class="sbtn" onclick="openMoveToArticlePicker('${item.id}','source','${item._artId}')"><i class="ti ti-transfer" style="font-size:10px"></i>案件へ移動</button><button class="sbtn" onclick="moveSourceToStockById('${item._artId}','${item.id}')"><i class="ti ti-bookmark" style="font-size:10px"></i>ストックへ</button>`:''}
       </div>
     </div>`;
   }).join('');
 }
-
-function setStockTag(tag){
-  stockTagFilter = tag;
-  renderStockPane();
-}
-
+function setStockTag(tag){stockTagFilter=tag;renderStockPane();}
 function updateStockCount(){
-  const stocks = state.stocks || [];
-  const countEl = document.getElementById('stockCount');
-  const total = stocks.length + (state.articles||[]).filter(a=>!a.deleted).reduce((n,a)=>n+(a.sources||[]).length,0);
-  if(countEl) countEl.textContent = total ? total+'件' : '';
+  const stocks=state.stocks||[];
+  const total=stocks.length+(state.articles||[]).filter(a=>!a.deleted).reduce((n,a)=>n+(a.sources||[]).length,0);
+  const el=document.getElementById('stockCount');
+  if(el){el.textContent=total?total+'件':'';el.style.display=total?'':'none';}
+}
+function moveSourceToStockById(artId,sourceId){
+  const art=state.articles.find(a=>a.id===artId);if(!art)return;
+  const s=art.sources.find(x=>x.id===sourceId);if(!s)return;
+  if(!state.stocks)state.stocks=[];
+  state.stocks.unshift({id:uid(),url:s.url||'',quote:s.quote||'',note:s.note||s.who||'',tags:[],savedAt:new Date().toLocaleDateString('ja'),type:s.type});
+  art.sources=art.sources.filter(x=>x.id!==sourceId);
+  save(true);if(state.currentId===artId)renderSources();renderArtList();renderStockPane();updateStockCount();
+}
+function deleteSourceFromStock(artId,sourceId){
+  if(!confirm('削除しますか？'))return;
+  const art=state.articles.find(a=>a.id===artId);if(!art)return;
+  art.sources=art.sources.filter(x=>x.id!==sourceId);
+  save(true);if(state.currentId===artId)renderSources();renderArtList();renderStockPane();
 }
 
-function moveSourceToStock(artId, sourceId){
-  const art = state.articles.find(a=>a.id===artId);
-  if(!art) return;
-  const s = art.sources.find(x=>x.id===sourceId);
-  if(!s) return;
-  if(!state.stocks) state.stocks=[];
-  state.stocks.unshift({id:uid(),url:s.url||'',quote:s.quote||'',note:s.note||'',tags:[],savedAt:new Date().toLocaleDateString('ja')});
-  art.sources = art.sources.filter(x=>x.id!==sourceId);
-  save(true);renderSources();renderArtList();renderStockPane();
-}
-
-function deleteSourceFromStock(artId, sourceId){
-  if(!confirm('削除しますか？')) return;
-  const art = state.articles.find(a=>a.id===artId);
-  if(!art) return;
-  art.sources = art.sources.filter(x=>x.id!==sourceId);
-  save(true);renderSources();renderArtList();renderStockPane();
-}
-
-let editingStockId = null;
-
-function openAddStockModal(prefill){
-  editingStockId = null;
-  document.getElementById('sUrl').value = prefill?.url || '';
-  document.getElementById('sQuote').value = prefill?.quote || '';
-  document.getElementById('sNote').value = prefill?.note || '';
-  document.getElementById('sTags').value = (prefill?.tags||[]).join(', ');
-  document.getElementById('addStockModal').classList.remove('hidden');
-  showTagSuggestions();
-}
-
-function openEditStock(id){
-  const s = (state.stocks||[]).find(x=>x.id===id);
-  if(!s) return;
-  editingStockId = id;
-  document.getElementById('sUrl').value = s.url||'';
-  document.getElementById('sQuote').value = s.quote||'';
-  document.getElementById('sNote').value = s.note||'';
-  document.getElementById('sTags').value = (s.tags||[]).join(', ');
-  document.getElementById('addStockModal').classList.remove('hidden');
-}
-
-function showTagSuggestions(){
-  const allTags = [...new Set([
-    ...(state.stocks||[]).flatMap(s=>s.tags||[]),
-    ...(state.articles||[]).flatMap(a=>(a.sources||[]).flatMap(s=>s.tags||[]))
-  ])];
-  const hint = document.getElementById('existingTagsHint');
-  if(!hint||!allTags.length) return;
-  hint.innerHTML = '<span style="font-size:10px;color:var(--tx3)">既存タグ: </span>' +
-    allTags.map(t=>`<button onclick="addTagToInput('${esc(t)}')" style="font-size:10px;padding:1px 7px;border-radius:99px;border:0.5px solid var(--bd2);background:var(--bg2);cursor:pointer;margin:1px;color:var(--tx2)">${esc(t)}</button>`).join('');
-}
-
-function addTagToInput(tag){
-  const input = document.getElementById('sTags');
-  const current = input.value.trim();
-  const tags = current ? current.split(/[,、]/).map(t=>t.trim()).filter(Boolean) : [];
-  if(!tags.includes(tag)) tags.push(tag);
-  input.value = tags.join(', ');
-}
-
-function saveStock(){
-  if(!state.stocks) state.stocks=[];
-  const url = document.getElementById('sUrl').value.trim();
-  const quote = document.getElementById('sQuote').value.trim();
-  const note = document.getElementById('sNote').value.trim();
-  const tagsRaw = document.getElementById('sTags').value.trim();
-  const tags = tagsRaw ? tagsRaw.split(/[,、]/).map(t=>t.trim()).filter(Boolean) : [];
-  if(!url&&!quote&&!note){alert('URL、引用テキスト、メモのいずれかを入力してください');return;}
-  const item = {id:editingStockId||uid(), url, quote, note, tags, savedAt:new Date().toLocaleDateString('ja')};
-  if(editingStockId){
-    const idx=state.stocks.findIndex(s=>s.id===editingStockId);
-    if(idx>=0) state.stocks[idx]=item;
-  } else {
-    state.stocks.unshift(item);
-  }
-  save(true);
-  updateStockCount();
-  renderStockPanel();
-  closeModal('addStockModal');
-}
-
-function deleteStock(id){
-  if(!confirm('このストックを削除しますか？')) return;
-  state.stocks=(state.stocks||[]).filter(s=>s.id!==id);
-  save(true);updateStockCount();renderStockPanel();
-}
-
-function moveStockToSource(id){
-  openMoveToArticlePicker(id, 'stock', '');
-}
-
-function openMoveToArticlePicker(itemId, kind, fromArtId){
-  const activeArts = (state.articles||[]).filter(a=>!a.deleted);
+// ── move to article picker ──
+function openMoveToArticlePicker(itemId,kind,fromArtId){
+  const activeArts=(state.articles||[]).filter(a=>!a.deleted);
   if(!activeArts.length){alert('案件がありません。先に案件を作成してください。');return;}
-  let existing = document.getElementById('moveToArtModal');
-  if(existing) existing.remove();
-  const modal = document.createElement('div');
-  modal.id = 'moveToArtModal';
-  modal.className = 'modal-bg';
-  modal.style.zIndex = '400';
-  modal.innerHTML = `
-    <div class="modal" style="width:420px">
-      <h2><i class="ti ti-transfer"></i> どの案件に移動しますか？</h2>
-      <div style="max-height:320px;overflow-y:auto;margin-bottom:14px">
-        ${activeArts.map(a=>`
-          <div class="ali${a.id===state.currentId?' active':''}" onclick="confirmMoveToArt('${itemId}','${kind}','${fromArtId}','${a.id}')">
-            <div>
-              <div class="ali-title">${esc(a.title)}</div>
-              <div class="ali-meta">${a.createdAt} · 引用${a.sources.length}件</div>
-            </div>
-            <span class="status-badge status-${a.status||'writing'}">${statusLabel(a.status||'writing')}</span>
-          </div>`).join('')}
-      </div>
-      <div class="modal-footer">
-        <button class="mbtn" onclick="document.getElementById('moveToArtModal').remove()">キャンセル</button>
-      </div>
-    </div>`;
-  modal.addEventListener('click', e=>{ if(e.target===modal) modal.remove(); });
+  let existing=document.getElementById('moveToArtModal');if(existing)existing.remove();
+  const modal=document.createElement('div');modal.id='moveToArtModal';modal.className='modal-bg';modal.style.zIndex='400';
+  modal.innerHTML=`<div class="modal" style="width:420px"><h2><i class="ti ti-transfer"></i> どの案件に移動しますか？</h2>
+    <div style="max-height:320px;overflow-y:auto;margin-bottom:14px">
+      ${activeArts.map(a=>`<div class="ali${a.id===state.currentId?' active':''}" onclick="confirmMoveToArt('${itemId}','${kind}','${fromArtId}','${a.id}')">
+        <div><div class="ali-title">${esc(a.title)}</div><div class="ali-meta">${a.createdAt} · 引用${(a.sources||[]).length}件</div></div>
+        <span class="status-badge status-${a.status||'writing'}">${statusLabel(a.status||'writing')}</span></div>`).join('')}
+    </div>
+    <div class="modal-footer"><button class="mbtn" onclick="document.getElementById('moveToArtModal').remove()">キャンセル</button></div>
+  </div>`;
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
   document.body.appendChild(modal);
 }
-
-function confirmMoveToArt(itemId, kind, fromArtId, toArtId){
-  const toArt = state.articles.find(a=>a.id===toArtId);
-  if(!toArt) return;
+function confirmMoveToArt(itemId,kind,fromArtId,toArtId){
+  const toArt=state.articles.find(a=>a.id===toArtId);if(!toArt)return;
   document.getElementById('moveToArtModal')?.remove();
   if(kind==='stock'){
-    const s = (state.stocks||[]).find(x=>x.id===itemId);
-    if(!s) return;
+    const s=(state.stocks||[]).find(x=>x.id===itemId);if(!s)return;
     toArt.sources.push({id:uid(),url:s.url||'',quote:s.quote||'',translation:'',type:s.type||'その他',note:s.note||'',paraNum:null,sourceKind:'web',tags:s.tags||[]});
-    state.stocks = (state.stocks||[]).filter(x=>x.id!==itemId);
-  } else {
-    const fromArt = state.articles.find(a=>a.id===fromArtId);
-    if(!fromArt) return;
-    const s = fromArt.sources.find(x=>x.id===itemId);
-    if(!s) return;
-    toArt.sources.push({...s, id:uid(), paraNum:null});
-    fromArt.sources = fromArt.sources.filter(x=>x.id!==itemId);
+    state.stocks=(state.stocks||[]).filter(x=>x.id!==itemId);
+  }else{
+    const fromArt=state.articles.find(a=>a.id===fromArtId);if(!fromArt)return;
+    const s=fromArt.sources.find(x=>x.id===itemId);if(!s)return;
+    toArt.sources.push({...s,id:uid(),paraNum:null});
+    fromArt.sources=fromArt.sources.filter(x=>x.id!==itemId);
   }
   save(true);renderSources();renderArtList();renderStockPane();updateStockCount();
 }
 
-function importPending(){
-  const clips = window._pendingClips||[];
-  if(!clips.length) return;
-  window._pendingClips = null;
-  openImportPicker(clips);
+// ── stock add/edit ──
+let editingStockId=null;
+function openAddStockModal(prefill){
+  editingStockId=null;
+  document.getElementById('sUrl').value=prefill?.url||'';
+  document.getElementById('sQuote').value=prefill?.quote||'';
+  document.getElementById('sNote').value=prefill?.note||'';
+  document.getElementById('sTags').value=(prefill?.tags||[]).join(', ');
+  document.getElementById('addStockModal').classList.remove('hidden');
+  showTagSuggestions();
+}
+function openEditStock(id){
+  const s=(state.stocks||[]).find(x=>x.id===id);if(!s)return;
+  editingStockId=id;
+  document.getElementById('sUrl').value=s.url||'';document.getElementById('sQuote').value=s.quote||'';
+  document.getElementById('sNote').value=s.note||'';document.getElementById('sTags').value=(s.tags||[]).join(', ');
+  document.getElementById('addStockModal').classList.remove('hidden');showTagSuggestions();
+}
+function showTagSuggestions(){
+  const allTags=[...new Set([...(state.stocks||[]).flatMap(s=>s.tags||[]),...(state.articles||[]).flatMap(a=>(a.sources||[]).flatMap(s=>s.tags||[]))])];
+  const hint=document.getElementById('existingTagsHint');if(!hint)return;
+  hint.innerHTML=allTags.length?'<span style="font-size:10px;color:var(--tx3)">既存タグ: </span>'+allTags.map(t=>`<button onclick="addTagToInput('${esc(t)}')" style="font-size:10px;padding:1px 7px;border-radius:99px;border:0.5px solid var(--bd2);background:var(--bg2);cursor:pointer;margin:1px;color:var(--tx2)">${esc(t)}</button>`).join(''):'';
+}
+function addTagToInput(tag){
+  const input=document.getElementById('sTags');const current=input.value.trim();
+  const tags=current?current.split(/[,、]/).map(t=>t.trim()).filter(Boolean):[];
+  if(!tags.includes(tag))tags.push(tag);input.value=tags.join(', ');
+}
+function saveStock(){
+  if(!state.stocks)state.stocks=[];
+  const url=document.getElementById('sUrl').value.trim(),quote=document.getElementById('sQuote').value.trim(),note=document.getElementById('sNote').value.trim();
+  const tags=document.getElementById('sTags').value.trim().split(/[,、]/).map(t=>t.trim()).filter(Boolean);
+  if(!url&&!quote&&!note){alert('URL、引用テキスト、メモのいずれかを入力してください');return;}
+  const item={id:editingStockId||uid(),url,quote,note,tags,savedAt:new Date().toLocaleDateString('ja')};
+  if(editingStockId){const idx=state.stocks.findIndex(s=>s.id===editingStockId);if(idx>=0)state.stocks[idx]=item;}
+  else state.stocks.unshift(item);
+  save(true);updateStockCount();renderStockPane();closeModal('addStockModal');
+}
+function deleteStock(id){
+  if(!confirm('このストックを削除しますか？'))return;
+  state.stocks=(state.stocks||[]).filter(s=>s.id!==id);
+  save(true);updateStockCount();renderStockPane();
 }
 
+// ── import pending clips ──
+function checkPending(){
+  try{const raw=localStorage.getItem('reporter_pending_clips');if(!raw)return;window._pendingClips=JSON.parse(raw);localStorage.removeItem('reporter_pending_clips');renderSources();}catch(e){}
+}
+function checkPendingForStock(clips){
+  if(!state.stocks)state.stocks=[];
+  clips.forEach(c=>{state.stocks.unshift({id:uid(),url:c.url||'',quote:c.quote||'',note:c.title||'',tags:[],savedAt:new Date().toLocaleDateString('ja')});});
+  save(true);updateStockCount();renderStockPane();
+}
+function importPending(){
+  const clips=window._pendingClips||[];if(!clips.length)return;
+  window._pendingClips=null;openImportPicker(clips);
+}
 function openImportPicker(clips){
-  let existing = document.getElementById('importPickerModal');
-  if(existing) existing.remove();
-  const activeArts = (state.articles||[]).filter(a=>!a.deleted);
-  const modal = document.createElement('div');
-  modal.id = 'importPickerModal';
-  modal.className = 'modal-bg';
-  modal.style.zIndex = '400';
-  const clipsJson = JSON.stringify(clips);
-  const preview = clips.slice(0,3).map(c=>`<div style="font-size:11px;padding:4px 8px;background:var(--bg2);border-radius:var(--r);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.quote?'"'+c.quote.slice(0,50)+'…"':c.url)}</div>`).join('');
-  const artItems = activeArts.map(a=>`<div class="ali" onclick="importToArticle(window._importClips,'${a.id}')"><div><div class="ali-title">${esc(a.title)}</div><div class="ali-meta">${a.createdAt} · 引用${a.sources.length}件</div></div><span class="status-badge status-${a.status||'writing'}">${statusLabel(a.status||'writing')}</span></div>`).join('');
-  modal.innerHTML = `<div class="modal" style="width:440px">
-    <h2><i class="ti ti-clipboard-check"></i> ${clips.length}件のクリップをどこに保存しますか？</h2>
+  let existing=document.getElementById('importPickerModal');if(existing)existing.remove();
+  const activeArts=(state.articles||[]).filter(a=>!a.deleted);
+  const modal=document.createElement('div');modal.id='importPickerModal';modal.className='modal-bg';modal.style.zIndex='400';
+  const preview=clips.slice(0,3).map(c=>`<div style="font-size:11px;padding:4px 8px;background:var(--bg2);border-radius:var(--r);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.quote?'"'+c.quote.slice(0,50)+'…"':c.url)}</div>`).join('');
+  window._importClips=clips;
+  modal.innerHTML=`<div class="modal" style="width:440px"><h2><i class="ti ti-clipboard-check"></i> ${clips.length}件のクリップをどこに保存しますか？</h2>
     <div style="margin-bottom:12px">${preview}${clips.length>3?`<div style="font-size:10px;color:var(--tx3);padding:2px 8px">他${clips.length-3}件</div>`:''}</div>
     <div style="font-size:11px;font-weight:500;color:var(--tx2);margin-bottom:6px">保存先:</div>
-    <div class="ali" onclick="importToStock()" style="border:0.5px solid var(--bd2);margin-bottom:4px">
-      <div><div class="ali-title"><i class="ti ti-bookmark" style="color:var(--btx)"></i> ストックに保存</div><div class="ali-meta">後で案件に振り分けられます</div></div>
-    </div>
-    ${artItems}
+    <div class="ali" onclick="importToStock()" style="border:0.5px solid var(--bd2);margin-bottom:4px"><div><div class="ali-title"><i class="ti ti-bookmark" style="color:var(--btx)"></i> ストックに保存</div><div class="ali-meta">後で案件に振り分けられます</div></div></div>
+    ${activeArts.map(a=>`<div class="ali" onclick="importToArticle('${a.id}')"><div><div class="ali-title">${esc(a.title)}</div><div class="ali-meta">${a.createdAt} · 引用${(a.sources||[]).length}件</div></div><span class="status-badge status-${a.status||'writing'}">${statusLabel(a.status||'writing')}</span></div>`).join('')}
     <div class="modal-footer"><button class="mbtn" onclick="document.getElementById('importPickerModal').remove()">キャンセル</button></div>
   </div>`;
-  modal.addEventListener('click', e=>{ if(e.target===modal) modal.remove(); });
-  window._importClips = clips;
-  document.body.appendChild(modal);
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});document.body.appendChild(modal);
+}
+function importToStock(){document.getElementById('importPickerModal')?.remove();checkPendingForStock(window._importClips||[]);window._importClips=null;if(!stockPaneVisible)toggleStockPane();}
+function importToArticle(artId){
+  document.getElementById('importPickerModal')?.remove();
+  const art=state.articles.find(a=>a.id===artId);if(!art)return;
+  (window._importClips||[]).forEach(c=>{art.sources.push({id:uid(),url:c.url||'',quote:c.quote||'',translation:'',type:c.sourceType||'その他',note:c.title||'',paraNum:null,sourceKind:'web'});});
+  window._importClips=null;save(true);if(state.currentId===artId)renderSources();renderArtList();
 }
 
-function importToStock(){
-  document.getElementById('importPickerModal')?.remove();
-  checkPendingForStock(window._importClips||[]);
-  window._importClips = null;
-  if(!stockPaneVisible) toggleStockPane();
-}
+window.addEventListener('storage',e=>{
+  if(e.key==='reporter_pending_clips'&&e.newValue){
+    try{window._pendingClips=JSON.parse(e.newValue);localStorage.removeItem('reporter_pending_clips');renderSources();}catch(err){}
+  }
+});
 
-function importToArticle(clips, artId){
-  document.getElementById('importPickerModal')?.remove();
-  const art = state.articles.find(a=>a.id===artId);
-  if(!art) return;
-  (clips||[]).forEach(c=>{
-    art.sources.push({id:uid(),url:c.url||'',quote:c.quote||'',translation:'',type:c.sourceType||'その他',note:c.title||'',paraNum:null,sourceKind:'web'});
+// ── verify copy ──
+function copyAllForVerify(){
+  const art=getCurrentArticle();if(!art)return;
+  const paras=getParas(art.text);const srcs=art.sources.filter(s=>s.quote);
+  if(!srcs.length){alert('引用テキストが登録された引用元がありません');return;}
+  let text='【AI翻訳検証依頼】\n\n■ 案件: '+art.title+'\n\n';
+  srcs.forEach((s,i)=>{
+    const linkedPara=s.paraNum?paras.find(p=>p.num===s.paraNum):null;
+    text+=`引用元 ${i+1} (${s.type})\n`;
+    if(s.note)text+=`備考: ${s.note}\n`;
+    text+=`原文: ${s.quote}\n`;
+    if(s.translation)text+=`和訳: ${s.translation}\n`;
+    if(linkedPara)text+=`原稿段落: ${linkedPara.text}\n`;
+    text+=`URL: ${s.url}\n\n`;
   });
-  window._importClips = null;
-  save(true);
-  if(state.currentId===artId) renderSources();
-  renderArtList();
+  text+='上記の引用元について、①原文と和訳の整合性、②原稿段落の記述と引用元の内容の整合性を検証してください。';
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn=document.querySelector('.tbtn[onclick="copyAllForVerify()"]');
+    if(btn){const o=btn.innerHTML;btn.innerHTML='<i class="ti ti-check"></i> コピー完了！Claudeに貼り付けて';setTimeout(()=>btn.innerHTML=o,3000);}
+  }).catch(()=>alert('コピーに失敗しました'));
 }
 
+// ── utils ──
+function closeModal(id){document.getElementById(id).classList.add('hidden');}
+document.querySelectorAll('.modal-bg').forEach(bg=>{bg.addEventListener('click',function(e){if(e.target===this)this.classList.add('hidden');});});
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key==='s'){e.preventDefault();saveArticle();}
+  if(e.key==='Escape')closePicker();
+});
 
+load();
+</script>
+</body>
+</html>
