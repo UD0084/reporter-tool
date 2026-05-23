@@ -527,39 +527,48 @@ function renderColEditor(colPx, numCols){
   const colEd = document.getElementById('colEditor');
   const text = ta.value;
 
-  // Split text into lines respecting currentColWidth
-  const lines = [];
-  text.split('\n').forEach(line => {
-    if(line === ''){ lines.push(''); return; }
-    let i = 0;
-    while(i < line.length){
-      lines.push(line.slice(i, i + currentColWidth));
-      i += currentColWidth;
-    }
-  });
+  // Split ONLY on real paragraph breaks (\n), never insert extra \n
+  const realLines = text.split('\n');
+  // Distribute real lines into columns top-to-bottom
+  const linesPerCol = Math.ceil(realLines.length / numCols) || 1;
 
-  const linesPerCol = Math.ceil(lines.length / numCols) || 1;
-
-  // Build column textareas - each column is a real editable textarea
   colEd.innerHTML = '';
   for(let c = 0; c < numCols; c++){
-    const colLines = lines.slice(c * linesPerCol, (c+1) * linesPerCol);
+    const colLines = realLines.slice(c * linesPerCol, (c+1) * linesPerCol);
     const colText = colLines.join('\n');
+    const rows = colLines.length + 2;
+
     const colDiv = document.createElement('div');
     colDiv.style.cssText = `width:${colPx}px;flex-shrink:0;`;
+
     const colTa = document.createElement('textarea');
-    colTa.style.cssText = `border:none;outline:none;resize:none;background:transparent;font-family:Georgia,serif;font-size:15px;line-height:2;color:var(--tx);caret-color:var(--green);padding:0;width:${colPx}px;overflow:hidden;min-height:${linesPerCol*2*15*1.2}px`;
+    colTa.style.cssText = [
+      'border:none','outline:none','resize:none','background:transparent',
+      'font-family:Georgia,serif','font-size:15px','line-height:2',
+      `color:var(--tx)`,'caret-color:var(--green)','padding:0',
+      `width:${colPx}px`,'overflow:hidden',
+      // KEY: wrap within column width without inserting \n
+      'white-space:pre-wrap','word-break:break-all',
+      `min-height:${rows * 30}px`
+    ].join(';');
+
     colTa.value = colText;
-    colTa.dataset.col = c;
+    colTa.dataset.col = String(c);
+    colTa.dataset.startLine = String(c * linesPerCol);
+
     colTa.addEventListener('input', onColInput);
     colTa.addEventListener('click', e => {
       e.stopPropagation();
-      const p = getParaAtCursor();
-      if(p !== activePara){ activePara = p; updateFooter(); renderSources(); }
+      setTimeout(()=>{
+        const p = getParaAtCursorCol(colTa);
+        if(p !== activePara){ activePara = p; updateFooter(); renderSources(); }
+      }, 0);
     });
     colTa.addEventListener('keyup', e => {
-      const p = getParaAtCursor();
-      if(p !== activePara){ activePara = p; updateFooter(); renderSources(); }
+      setTimeout(()=>{
+        const p = getParaAtCursorCol(colTa);
+        if(p !== activePara){ activePara = p; updateFooter(); renderSources(); }
+      }, 0);
     });
     colTa.addEventListener('keydown', onColKeydown);
     colDiv.appendChild(colTa);
@@ -567,17 +576,37 @@ function renderColEditor(colPx, numCols){
   }
 }
 
+function getParaAtCursorCol(colTa){
+  // Find which real line (paragraph) the cursor is on within this column
+  const pos = colTa.selectionStart;
+  const textBefore = colTa.value.substring(0, pos);
+  // Count real \n in text before cursor = line index within this col
+  const lineInCol = textBefore.split('\n').length - 1;
+  // Add start line offset for this column
+  const startLine = parseInt(colTa.dataset.startLine || '0');
+  const absLineIdx = startLine + lineInCol;
+  // Map to paragraph number (non-empty lines)
+  const ta = document.getElementById('editor');
+  const allLines = ta.value.split('\n');
+  let paraCount = 0;
+  for(let i = 0; i <= absLineIdx && i < allLines.length; i++){
+    if(allLines[i].trim()) paraCount++;
+  }
+  return paraCount || null;
+}
+
 function onColInput(e){
-  // Sync all column textareas back to main textarea
   syncColsToMain();
   updateFooter();
   const art = getCurrentArticle();
   if(art) art.text = document.getElementById('editor').value;
   try{localStorage.setItem(SK, JSON.stringify(state));}catch(err){}
+  // Update para highlight
+  const p = getParaAtCursorCol(e.target);
+  if(p !== activePara){ activePara = p; renderSources(); }
 }
 
 function onColKeydown(e){
-  // Just sync without re-rendering columns (avoids focus loss)
   setTimeout(() => {
     syncColsToMain();
     updateFooter();
@@ -593,9 +622,8 @@ function syncColsToMain(){
   const colTas = colEd.querySelectorAll('textarea');
   const parts = [];
   colTas.forEach(ct => parts.push(ct.value));
-  // Join columns: re-merge wrapped lines
-  const merged = parts.join('\n');
-  ta.value = merged;
+  // Join with \n — this preserves original paragraph breaks
+  ta.value = parts.join('\n');
 }
 
 function colEditorClick(e){
@@ -632,35 +660,9 @@ function updateFooter(){
 }
 function getParaAtCursor(){
   if(currentColWidth <= 24){
-    // In col mode: figure out para from which col textarea is focused and its cursor
     const focused = document.activeElement;
     if(focused && focused.closest && focused.closest('#colEditor')){
-      const colIdx = parseInt(focused.dataset.col || '0');
-      const pos = focused.selectionStart;
-      const colText = focused.value;
-      const linesBefore = colText.substring(0, pos).split('\n').length - 1;
-
-      // Count total lines before this column
-      const allColTas = document.querySelectorAll('#colEditor textarea');
-      let totalLinesBefore = 0;
-      for(let i = 0; i < colIdx; i++){
-        totalLinesBefore += (allColTas[i].value.split('\n').length);
-      }
-      const absLineIdx = totalLinesBefore + linesBefore;
-
-      // Map absolute line index to paragraph number
-      const ta = document.getElementById('editor');
-      syncColsToMain();
-      const paras = getParas(ta.value);
-      // Count non-empty lines up to absLineIdx
-      const allLines = ta.value.split('\n');
-      let paraNum = null;
-      let paraCount = 0;
-      for(let i = 0; i <= absLineIdx && i < allLines.length; i++){
-        if(allLines[i].trim()) paraCount++;
-        paraNum = paraCount || null;
-      }
-      return paraNum;
+      return getParaAtCursorCol(focused);
     }
     return activePara;
   }
