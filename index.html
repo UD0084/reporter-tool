@@ -552,7 +552,15 @@ function renderColEditor(colPx, numCols){
     colTa.value = colText;
     colTa.dataset.col = c;
     colTa.addEventListener('input', onColInput);
-    colTa.addEventListener('click', e => e.stopPropagation());
+    colTa.addEventListener('click', e => {
+      e.stopPropagation();
+      const p = getParaAtCursor();
+      if(p !== activePara){ activePara = p; updateFooter(); renderSources(); }
+    });
+    colTa.addEventListener('keyup', e => {
+      const p = getParaAtCursor();
+      if(p !== activePara){ activePara = p; updateFooter(); renderSources(); }
+    });
     colTa.addEventListener('keydown', onColKeydown);
     colDiv.appendChild(colTa);
     colEd.appendChild(colDiv);
@@ -569,13 +577,14 @@ function onColInput(e){
 }
 
 function onColKeydown(e){
-  // Handle Enter: allow normal behavior, then re-render
-  if(e.key === 'Enter' || e.key === 'Backspace' || e.key === 'Delete'){
-    setTimeout(() => {
-      syncColsToMain();
-      applyColumnLayout();
-    }, 0);
-  }
+  // Just sync without re-rendering columns (avoids focus loss)
+  setTimeout(() => {
+    syncColsToMain();
+    updateFooter();
+    const art = getCurrentArticle();
+    if(art){ art.text = document.getElementById('editor').value; }
+    try{localStorage.setItem(SK, JSON.stringify(state));}catch(err){}
+  }, 0);
 }
 
 function syncColsToMain(){
@@ -622,12 +631,38 @@ function updateFooter(){
   }
 }
 function getParaAtCursor(){
-  // In col mode, find which col textarea is focused
   if(currentColWidth <= 24){
+    // In col mode: figure out para from which col textarea is focused and its cursor
     const focused = document.activeElement;
-    if(focused && focused.dataset && focused.dataset.col !== undefined){
+    if(focused && focused.closest && focused.closest('#colEditor')){
+      const colIdx = parseInt(focused.dataset.col || '0');
+      const pos = focused.selectionStart;
+      const colText = focused.value;
+      const linesBefore = colText.substring(0, pos).split('\n').length - 1;
+
+      // Count total lines before this column
+      const allColTas = document.querySelectorAll('#colEditor textarea');
+      let totalLinesBefore = 0;
+      for(let i = 0; i < colIdx; i++){
+        totalLinesBefore += (allColTas[i].value.split('\n').length);
+      }
+      const absLineIdx = totalLinesBefore + linesBefore;
+
+      // Map absolute line index to paragraph number
+      const ta = document.getElementById('editor');
       syncColsToMain();
+      const paras = getParas(ta.value);
+      // Count non-empty lines up to absLineIdx
+      const allLines = ta.value.split('\n');
+      let paraNum = null;
+      let paraCount = 0;
+      for(let i = 0; i <= absLineIdx && i < allLines.length; i++){
+        if(allLines[i].trim()) paraCount++;
+        paraNum = paraCount || null;
+      }
+      return paraNum;
     }
+    return activePara;
   }
   const ta=document.getElementById('editor');
   const pos=ta.selectionStart;
