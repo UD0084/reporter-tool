@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>記者原稿ツール</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.14.0/dist/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#fff;--bg2:#f7f7f5;--bg3:#f0efe9;
+  --tx:#1a1a1a;--tx2:#666;--tx3:#aaa;
+  --bd:rgba(0,0,0,0.08);--bd2:rgba(0,0,0,0.14);--bd3:rgba(0,0,0,0.22);
+  --green:#1D9E75;--gbg:#E1F5EE;--gtx:#085041;
+  --blue:#185FA5;--bbg:#E6F1FB;--btx:#0C447C;
+  --abg:#FAEEDA;--atx:#633806;
+  --pbg:#EEEDFE;--ptx:#3C3489;
+  --r:8px;--rl:12px;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#1e1e1e;--bg2:#262626;--bg3:#2e2e2e;--tx:#e8e8e8;--tx2:#aaa;--tx3:#555;--bd:rgba(255,255,255,0.07);--bd2:rgba(255,255,255,0.12);--bd3:rgba(255,255,255,0.2)}
+}
+html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--tx)}
+
+/* ── Layout ── */
+.shell{display:flex;height:100vh;flex-direction:column}
+.topbar{height:48px;background:var(--bg);border-bottom:0.5px solid var(--bd);display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0}
+.topbar-title{font-size:14px;font-weight:500;color:var(--tx);flex:1;background:transparent;border:none;outline:none;font-family:var(--font)}
+.topbar-title::placeholder{color:var(--tx3)}
+.topbar-meta{font-size:12px;color:var(--tx3)}
+.topbar-btn{padding:5px 12px;border-radius:var(--r);border:0.5px solid var(--bd2);background:transparent;cursor:pointer;font-size:12px;color:var(--tx2);font-family:var(--font);display:flex;align-items:center;gap:5px}
+.topbar-btn:hover{background:var(--bg2);color:var(--tx)}
+.topbar-btn.active{background:var(--bbg);color:var(--btx);border-color:#B5D4F4}
+
+.workspace{display:flex;flex:1;overflow:hidden}
+
+/* ── Article list (drawer) ── */
+.drawer{width:220px;background:var(--bg2);border-right:0.5px solid var(--bd);display:flex;flex-direction:column;flex-shrink:0;transition:width 0.2s}
+.drawer.collapsed{width:0;overflow:hidden}
+.drawer-head{padding:12px 12px 8px;border-bottom:0.5px solid var(--bd);font-size:12px;font-weight:500;color:var(--tx2);letter-spacing:0.03em;display:flex;align-items:center;justify-content:space-between}
+.art-list{flex:1;overflow-y:auto;padding:6px}
+.art-item{padding:7px 9px;border-radius:var(--r);cursor:pointer;margin-bottom:3px;border:0.5px solid transparent}
+.art-item:hover{background:var(--bg);border-color:var(--bd)}
+.art-item.active{background:var(--bg);border-color:var(--bd2)}
+.art-item-title{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.art-item-meta{font-size:10px;color:var(--tx3);margin-top:2px}
+.new-art-btn{margin:6px;padding:7px 10px;border:0.5px dashed var(--bd2);border-radius:var(--r);background:transparent;cursor:pointer;font-size:12px;color:var(--tx2);display:flex;align-items:center;gap:5px;font-family:var(--font)}
+.new-art-btn:hover{background:var(--bg);color:var(--tx)}
+
+/* ── Editor pane ── */
+.editor-pane{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.editor-toolbar{padding:8px 16px;border-bottom:0.5px solid var(--bd);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.editor-toolbar span{font-size:11px;color:var(--tx3)}
+.editor-wrap{flex:1;overflow-y:auto;padding:32px 40px}
+.editor{width:100%;min-height:100%;outline:none;font-size:15px;line-height:1.9;color:var(--tx);caret-color:var(--green)}
+.editor p{margin-bottom:0.5em;padding:3px 6px;border-radius:4px;border-left:3px solid transparent;transition:border-color 0.15s,background 0.15s;cursor:text}
+.editor p.active-para{border-left-color:var(--green);background:rgba(29,158,117,0.04)}
+.editor p.has-source{border-left-color:#B5D4F4}
+.editor p.active-para.has-source{border-left-color:var(--green)}
+.editor p:empty::before{content:attr(data-placeholder);color:var(--tx3);pointer-events:none}
+.word-count{font-size:11px;color:var(--tx3);padding:6px 16px;border-top:0.5px solid var(--bd);flex-shrink:0}
+
+/* ── Source pane ── */
+.source-pane{width:320px;border-left:0.5px solid var(--bd);display:flex;flex-direction:column;flex-shrink:0;background:var(--bg2);transition:width 0.2s}
+.source-pane.collapsed{width:0;overflow:hidden}
+.source-head{padding:10px 14px 8px;border-bottom:0.5px solid var(--bd);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.source-head-title{font-size:12px;font-weight:500;color:var(--tx2)}
+.source-body{flex:1;overflow-y:auto;padding:10px 12px}
+.source-empty{text-align:center;padding:40px 16px;color:var(--tx3);font-size:12px;line-height:1.8}
+
+/* source cards */
+.sc{background:var(--bg);border:0.5px solid var(--bd);border-radius:var(--r);padding:10px 12px;margin-bottom:8px}
+.sc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:5px}
+.stag{font-size:10px;padding:2px 7px;border-radius:var(--r);font-weight:500;display:inline-block}
+.t-sns{background:var(--bbg);color:var(--btx)}.t-un{background:var(--gbg);color:var(--gtx)}
+.t-research{background:var(--abg);color:var(--atx)}.t-media{background:var(--pbg);color:var(--ptx)}
+.t-other{background:var(--bg2);color:var(--tx2)}
+.sc-note{font-size:11px;color:var(--tx2);margin-left:5px}
+.sc-quote{font-size:12px;font-style:italic;color:var(--tx);border-left:2px solid var(--bd2);padding-left:7px;margin:5px 0;line-height:1.5}
+.sc-trans{font-size:11px;color:var(--tx2);line-height:1.5;margin:3px 0}
+.sc-url{font-size:10px;color:var(--tx3);word-break:break-all;margin-top:3px}
+.sc-url a{color:var(--blue);text-decoration:none}
+.sc-url a:hover{text-decoration:underline}
+.sc-actions{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap}
+.sbtn{font-size:11px;padding:3px 8px;border:0.5px solid var(--bd);border-radius:var(--r);background:transparent;cursor:pointer;color:var(--tx2);display:flex;align-items:center;gap:3px;font-family:var(--font)}
+.sbtn:hover{background:var(--bg2);color:var(--tx)}
+.sbtn.del:hover{color:#E24B4A;border-color:#F7C1C1}
+.sc-verify{font-size:11px;margin-top:6px;padding:6px 8px;background:var(--bg2);border-radius:var(--r);line-height:1.5}
+
+/* add source panel */
+.add-source-panel{border-top:0.5px solid var(--bd);padding:12px;flex-shrink:0;background:var(--bg)}
+.add-source-panel.hidden{display:none}
+.add-toggle{width:100%;padding:7px;background:transparent;border:0.5px dashed var(--bd2);border-radius:var(--r);cursor:pointer;font-size:12px;color:var(--tx2);display:flex;align-items:center;justify-content:center;gap:5px;font-family:var(--font)}
+.add-toggle:hover{background:var(--bg2);color:var(--tx)}
+.add-form{display:none}
+.add-form.open{display:block}
+.fl{margin-bottom:7px}
+.flabel{font-size:10px;color:var(--tx2);font-weight:500;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:3px}
+.fi{width:100%;padding:6px 9px;border:0.5px solid var(--bd2);border-radius:var(--r);background:var(--bg);color:var(--tx);font-size:12px;outline:none;font-family:var(--font)}
+.fi:focus{border-color:var(--bd3)}
+textarea.fi{resize:vertical;min-height:52px;line-height:1.5}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.save-btn{width:100%;padding:7px;background:var(--green);color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-size:12px;font-weight:500;font-family:var(--font);margin-top:4px}
+.save-btn:hover{opacity:0.88}
+
+/* pending banner */
+.pending-banner{background:var(--gbg);border:0.5px solid #9FE1CB;border-radius:var(--r);padding:9px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pending-banner p{font-size:12px;color:var(--gtx)}
+.pending-banner button{font-size:11px;padding:3px 10px;background:var(--green);color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-family:var(--font)}
+
+/* status */
+.s-ok{background:var(--gbg);color:var(--gtx)}.s-warn{background:var(--abg);color:var(--atx)}.s-pend{background:var(--bg2);color:var(--tx2)}
+.spinner{display:inline-block;width:10px;height:10px;border:2px solid var(--bd2);border-top-color:var(--tx2);border-radius:50%;animation:spin 0.6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:100;display:flex;align-items:center;justify-content:center}
+.modal-bg.hidden{display:none}
+.modal{background:var(--bg);border-radius:var(--rl);padding:24px;width:520px;max-width:90vw;border:0.5px solid var(--bd2)}
+.modal h2{font-size:15px;font-weight:500;margin-bottom:16px}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.mbtn{padding:7px 16px;border-radius:var(--r);border:0.5px solid var(--bd2);background:transparent;cursor:pointer;font-size:13px;font-family:var(--font);color:var(--tx)}
+.mbtn:hover{background:var(--bg2)}
+.mbtn.primary{background:var(--green);color:#fff;border-color:var(--green)}
+.mbtn.primary:hover{opacity:0.88}
+
+/* verify all panel */
+.verify-panel{padding:12px}
+.vc{background:var(--bg);border:0.5px solid var(--bd);border-radius:var(--r);padding:9px 11px;margin-bottom:8px}
+.vstatus{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:var(--r);font-weight:500}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- topbar -->
+  <div class="topbar">
+    <button class="topbar-btn" id="drawerToggle" onclick="toggleDrawer()" title="案件一覧"><i class="ti ti-layout-sidebar"></i></button>
+    <input class="topbar-title" id="artTitle" placeholder="案件タイトルを入力..." oninput="updateTitle(this.value)">
+    <span class="topbar-meta" id="artDate"></span>
+    <button class="topbar-btn" id="verifyAllBtn" onclick="openVerifyModal()"><i class="ti ti-language"></i> AI翻訳検証</button>
+    <button class="topbar-btn" id="sourcePaneToggle" onclick="toggleSourcePane()"><i class="ti ti-link"></i> 引用元パネル</button>
+  </div>
+
+  <div class="workspace">
+
+    <!-- drawer -->
+    <div class="drawer" id="drawer">
+      <div class="drawer-head">
+        案件一覧
+        <button class="sbtn" onclick="toggleDrawer()"><i class="ti ti-x" style="font-size:12px"></i></button>
+      </div>
+      <div class="art-list" id="artList"></div>
+      <button class="new-art-btn" onclick="newArticle()"><i class="ti ti-plus"></i>新規案件</button>
+    </div>
+
+    <!-- editor -->
+    <div class="editor-pane">
+      <div class="editor-toolbar">
+        <span id="paraInfo">段落をクリックすると右パネルに引用元が表示されます</span>
+      </div>
+      <div class="editor-wrap">
+        <div class="editor" id="editor" contenteditable="true"></div>
+      </div>
+      <div class="word-count" id="wordCount">0 文字</div>
+    </div>
+
+    <!-- source pane -->
+    <div class="source-pane" id="sourcePane">
+      <div class="source-head">
+        <span class="source-head-title" id="sourcePaneTitle">引用元</span>
+        <button class="sbtn" onclick="toggleSourcePane()"><i class="ti ti-x" style="font-size:12px"></i></button>
+      </div>
+      <div class="source-body" id="sourceBody"></div>
+      <div class="add-source-panel" id="addSourcePanel">
+        <button class="add-toggle" id="addToggleBtn" onclick="toggleAddForm()"><i class="ti ti-plus"></i>この段落に引用元を追加</button>
+        <div class="add-form" id="addForm">
+          <div class="row2" style="margin-bottom:7px">
+            <div class="fl"><label class="flabel">URL</label><input class="fi" id="nUrl" placeholder="https://..."></div>
+            <div class="fl"><label class="flabel">種別</label>
+              <select class="fi" id="nType"><option>SNS/X</option><option>国連・公式</option><option>研究機関</option><option>メディア</option><option>その他</option></select>
+            </div>
+          </div>
+          <div class="fl"><label class="flabel">引用テキスト（原文）</label><textarea class="fi" id="nQuote" placeholder="引用したい原文をペースト"></textarea></div>
+          <div class="fl"><label class="flabel">和訳メモ</label><textarea class="fi" id="nTrans" placeholder="自分の訳（後でAI検証できます）" style="min-height:40px"></textarea></div>
+          <div class="fl"><label class="flabel">備考</label><input class="fi" id="nNote" placeholder="誰の発言か、文脈など"></div>
+          <button class="save-btn" onclick="addSource()">この段落に保存</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- verify modal -->
+<div class="modal-bg hidden" id="verifyModal">
+  <div class="modal">
+    <h2><i class="ti ti-language"></i> AI翻訳検証 — 全引用元</h2>
+    <div id="verifyModalBody" style="max-height:60vh;overflow-y:auto"></div>
+    <div class="modal-footer">
+      <button class="mbtn" onclick="closeVerifyModal()">閉じる</button>
+      <button class="mbtn primary" id="runVerifyBtn" onclick="runVerifyAll()"><i class="ti ti-robot"></i> 検証開始</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SK='reporter_v3';
+let state={articles:[],currentId:null};
+let activeParaId=null;
+let drawerOpen=true;
+let sourcePaneOpen=true;
+let addFormOpen=false;
+
+// ── persistence ──
+function load(){
+  try{const d=localStorage.getItem(SK);if(d)state=JSON.parse(d);}catch(e){}
+  if(!state.articles.length) newArticle(true);
+  else renderAll();
+  checkPending();
+}
+function save(){try{localStorage.setItem(SK,JSON.stringify(state));}catch(e){}}
+
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+function tagClass(t){return({'SNS/X':'t-sns','国連・公式':'t-un','研究機関':'t-research','メディア':'t-media','その他':'t-other'}[t]||'t-other');}
+
+// ── article CRUD ──
+function newArticle(silent){
+  const a={id:uid(),title:'新規案件',createdAt:new Date().toLocaleDateString('ja'),content:[{id:uid(),text:''}],sources:[]};
+  state.articles.unshift(a);state.currentId=a.id;
+  save();renderAll();
+  if(!silent){setTimeout(()=>{const i=document.getElementById('artTitle');if(i){i.focus();i.select();}},50);}
+}
+function selectArticle(id){state.currentId=id;activeParaId=null;save();renderAll();}
+function deleteArticle(id,e){
+  e.stopPropagation();
+  if(!confirm('この案件を削除しますか？'))return;
+  state.articles=state.articles.filter(a=>a.id!==id);
+  if(state.currentId===id)state.currentId=state.articles[0]?.id||null;
+  save();renderAll();
+}
+function getCurrentArticle(){return state.articles.find(a=>a.id===state.currentId)||null;}
+function updateTitle(v){const a=getCurrentArticle();if(a){a.title=v;renderArtList();save();}}
+
+// ── render ──
+function renderAll(){renderArtList();renderEditor();renderSourcePane();}
+
+function renderArtList(){
+  const el=document.getElementById('artList');
+  if(!state.articles.length){el.innerHTML='<div style="padding:12px;font-size:11px;color:var(--tx3);text-align:center">案件がありません</div>';return;}
+  el.innerHTML=state.articles.map(a=>`
+    <div class="art-item${a.id===state.currentId?' active':''}" onclick="selectArticle('${a.id}')">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
+        <div class="art-item-title">${esc(a.title)}</div>
+        <button class="sbtn" style="padding:1px 3px" onclick="deleteArticle('${a.id}',event)"><i class="ti ti-x" style="font-size:11px"></i></button>
+      </div>
+      <div class="art-item-meta">${a.createdAt} · 引用${a.sources.length}件</div>
+    </div>`).join('');
+}
+
+function renderEditor(){
+  const art=getCurrentArticle();
+  const titleEl=document.getElementById('artTitle');
+  const dateEl=document.getElementById('artDate');
+  if(!art){
+    if(titleEl)titleEl.value='';
+    if(dateEl)dateEl.textContent='';
+    document.getElementById('editor').innerHTML='';
+    return;
+  }
+  if(titleEl)titleEl.value=art.title;
+  if(dateEl)dateEl.textContent=art.createdAt;
+
+  const editor=document.getElementById('editor');
+  // Save selection before re-render
+  const sel=window.getSelection();
+  let focusedParaId=activeParaId;
+
+  // Build paragraphs
+  editor.innerHTML=art.content.map((p,i)=>{
+    const hasSrc=art.sources.some(s=>s.paraId===p.id);
+    const isActive=p.id===activeParaId;
+    const cls=[isActive?'active-para':'',hasSrc?'has-source':''].filter(Boolean).join(' ');
+    return `<p data-id="${p.id}" class="${cls}" data-placeholder="${i===0?'原稿をここに入力...':''}">
+      ${p.text?esc(p.text):''}
+    </p>`;
+  }).join('');
+
+  updateWordCount();
+  attachEditorEvents();
+}
+
+function attachEditorEvents(){
+  const editor=document.getElementById('editor');
+  editor.querySelectorAll('p').forEach(p=>{
+    p.addEventListener('click',()=>activatePara(p.dataset.id));
+    p.addEventListener('keyup',()=>syncPara(p));
+    p.addEventListener('input',()=>syncPara(p));
+  });
+}
+
+function activatePara(id){
+  if(activeParaId===id)return;
+  activeParaId=id;
+  // update classes without full re-render
+  const art=getCurrentArticle();if(!art)return;
+  document.querySelectorAll('#editor p').forEach(p=>{
+    const hasSrc=art.sources.some(s=>s.paraId===p.dataset.id);
+    p.className=[p.dataset.id===id?'active-para':'',hasSrc?'has-source':''].filter(Boolean).join(' ');
+  });
+  const para=art.content.find(p=>p.id===id);
+  const idx=art.content.findIndex(p=>p.id===id);
+  document.getElementById('paraInfo').textContent=`段落 ${idx+1} を編集中`;
+  renderSourcePane();
+}
+
+function syncPara(pEl){
+  const art=getCurrentArticle();if(!art)return;
+  const id=pEl.dataset.id;
+  const para=art.content.find(p=>p.id===id);
+  if(!para)return;
+  const newText=pEl.innerText.replace(/\n$/,'');
+  if(para.text===newText)return;
+  para.text=newText;
+  // Check for Enter → new paragraph (handled by browser as new <div> or <br>)
+  updateWordCount();
+  save();
+}
+
+// Handle Enter key to create new paragraph in our data model
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter')return;
+  const sel=window.getSelection();
+  if(!sel.rangeCount)return;
+  const pEl=sel.anchorNode.nodeType===1?sel.anchorNode:sel.anchorNode.parentElement;
+  const para=pEl.closest('p[data-id]');
+  if(!para)return;
+  e.preventDefault();
+  const art=getCurrentArticle();if(!art)return;
+  const idx=art.content.findIndex(p=>p.id===para.dataset.id);
+  const newPara={id:uid(),text:''};
+  art.content.splice(idx+1,0,newPara);
+  save();
+  // re-render and focus new para
+  renderEditor();
+  setTimeout(()=>{
+    const newEl=document.querySelector(`p[data-id="${newPara.id}"]`);
+    if(newEl){newEl.focus();activatePara(newPara.id);}
+  },10);
+});
+
+// Handle Backspace on empty para to merge
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Backspace')return;
+  const sel=window.getSelection();
+  if(!sel.rangeCount||sel.anchorOffset!==0)return;
+  const pEl=sel.anchorNode.nodeType===1?sel.anchorNode:sel.anchorNode.parentElement;
+  const para=pEl.closest('p[data-id]');
+  if(!para)return;
+  const art=getCurrentArticle();if(!art)return;
+  const idx=art.content.findIndex(p=>p.id===para.dataset.id);
+  if(idx===0)return;
+  if(para.innerText.trim()!=='')return;
+  e.preventDefault();
+  art.content.splice(idx,1);
+  save();
+  renderEditor();
+  setTimeout(()=>{
+    const prevId=art.content[idx-1]?.id;
+    if(prevId){
+      const prevEl=document.querySelector(`p[data-id="${prevId}"]`);
+      if(prevEl){prevEl.focus();activatePara(prevId);}
+    }
+  },10);
+});
+
+function updateWordCount(){
+  const art=getCurrentArticle();if(!art)return;
+  const text=art.content.map(p=>p.text).join('');
+  document.getElementById('wordCount').textContent=`${text.length} 文字 · ${art.content.length} 段落`;
+}
+
+// ── source pane ──
+function renderSourcePane(){
+  const art=getCurrentArticle();
+  const body=document.getElementById('sourceBody');
+  const title=document.getElementById('sourcePaneTitle');
+  const addPanel=document.getElementById('addSourcePanel');
+
+  if(!art||!activeParaId){
+    title.textContent='引用元';
+    body.innerHTML='<div class="source-empty"><i class="ti ti-cursor-text" style="font-size:24px;display:block;margin-bottom:8px"></i>左の原稿の段落をクリックすると<br>その段落の引用元が表示されます</div>';
+    addPanel.classList.add('hidden');
+    return;
+  }
+
+  addPanel.classList.remove('hidden');
+  const idx=art.content.findIndex(p=>p.id===activeParaId);
+  title.textContent=`段落 ${idx+1} の引用元`;
+
+  const pending=window._pendingClips&&window._pendingClips.length;
+  const srcs=art.sources.filter(s=>s.paraId===activeParaId);
+
+  let html='';
+  if(pending){
+    html+=`<div class="pending-banner">
+      <p><i class="ti ti-clipboard-check"></i> 拡張機能から <strong>${window._pendingClips.length}件</strong> 届いています</p>
+      <button onclick="importPending()">この段落に取り込む</button>
+    </div>`;
+  }
+
+  if(!srcs.length&&!pending){
+    html+='<div class="source-empty" style="padding:24px 12px"><i class="ti ti-link-off" style="font-size:20px;display:block;margin-bottom:6px"></i>この段落にはまだ引用元がありません<br><span style="font-size:11px">下の「＋」から追加できます</span></div>';
+  } else {
+    html+=srcs.map(s=>`
+      <div class="sc" id="sc_${s.id}">
+        <div class="sc-top">
+          <div><span class="stag ${tagClass(s.type)}">${esc(s.type)}</span>${s.note?`<span class="sc-note">${esc(s.note)}</span>`:''}</div>
+          <button class="sbtn del" onclick="deleteSource('${s.id}')"><i class="ti ti-trash" style="font-size:12px"></i></button>
+        </div>
+        ${s.quote?`<div class="sc-quote">${esc(s.quote)}</div>`:''}
+        ${s.translation?`<div class="sc-trans">和訳: ${esc(s.translation)}</div>`:''}
+        <div class="sc-url"><a href="${esc(s.url)}" target="_blank">${esc(s.url)}</a></div>
+        <div class="sc-actions">
+          <button class="sbtn" onclick="copyText('${s.id}')"><i class="ti ti-copy" style="font-size:11px"></i>原文コピー</button>
+          ${s.quote&&s.translation?`<button class="sbtn" onclick="verifyOne('${s.id}')"><i class="ti ti-check" style="font-size:11px"></i>訳を検証</button>`:''}
+        </div>
+        <div id="vr_${s.id}"></div>
+      </div>`).join('');
+  }
+  body.innerHTML=html;
+}
+
+function toggleAddForm(){
+  addFormOpen=!addFormOpen;
+  document.getElementById('addForm').classList.toggle('open',addFormOpen);
+  document.getElementById('addToggleBtn').innerHTML=addFormOpen
+    ?'<i class="ti ti-minus"></i>閉じる'
+    :'<i class="ti ti-plus"></i>この段落に引用元を追加';
+}
+
+function addSource(){
+  const art=getCurrentArticle();if(!art||!activeParaId)return;
+  const url=document.getElementById('nUrl').value.trim();
+  const quote=document.getElementById('nQuote').value.trim();
+  if(!url&&!quote){alert('URLか引用テキストを入力してください');return;}
+  art.sources.push({
+    id:uid(),paraId:activeParaId,
+    url,quote,translation:document.getElementById('nTrans').value.trim(),
+    type:document.getElementById('nType').value,
+    note:document.getElementById('nNote').value.trim()
+  });
+  // clear form
+  ['nUrl','nQuote','nTrans','nNote'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  addFormOpen=false;
+  document.getElementById('addForm').classList.remove('open');
+  document.getElementById('addToggleBtn').innerHTML='<i class="ti ti-plus"></i>この段落に引用元を追加';
+  save();
+  renderSourcePane();
+  // update para highlight in editor
+  const pEl=document.querySelector(`p[data-id="${activeParaId}"]`);
+  if(pEl)pEl.classList.add('has-source');
+  renderArtList();
+}
+
+function deleteSource(id){
+  const art=getCurrentArticle();if(!art)return;
+  if(!confirm('削除しますか？'))return;
+  art.sources=art.sources.filter(s=>s.id!==id);
+  save();renderSourcePane();renderArtList();
+  // remove highlight if no more sources
+  const pEl=document.querySelector(`p[data-id="${activeParaId}"]`);
+  if(pEl&&!art.sources.some(s=>s.paraId===activeParaId))pEl.classList.remove('has-source');
+}
+
+function copyText(id){
+  const art=getCurrentArticle();if(!art)return;
+  const s=art.sources.find(x=>x.id===id);if(!s)return;
+  navigator.clipboard.writeText(s.quote||s.url).catch(()=>{});
+  const btn=document.querySelector(`#sc_${id} .sbtn`);
+  if(btn){const o=btn.innerHTML;btn.innerHTML='<i class="ti ti-check" style="font-size:11px"></i>コピー完了';setTimeout(()=>btn.innerHTML=o,1500);}
+}
+
+// ── AI verify single ──
+async function verifyOne(id){
+  const art=getCurrentArticle();if(!art)return;
+  const s=art.sources.find(x=>x.id===id);if(!s)return;
+  const el=document.getElementById(`vr_${id}`);
+  if(el)el.innerHTML='<div class="sc-verify"><span class="spinner"></span> 検証中...</div>';
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,
+        messages:[{role:'user',content:`海外特派員の引用翻訳チェッカーです。原文と和訳を比較しJSONのみ返答。\n原文: ${s.quote}\n和訳: ${s.translation}\n{"status":"ok"or"warn","issues":"問題点(okなら空)","suggestion":"修正案(okなら空)","accuracy":"精度一言"}`}]})
+    });
+    const data=await resp.json();
+    const text=(data.content||[]).map(i=>i.text||'').join('');
+    let r;try{r=JSON.parse(text.replace(/```json|```/g,'').trim());}catch(e){r={status:'warn',issues:'解析エラー',suggestion:'',accuracy:''};}
+    if(el)el.innerHTML=`<div class="sc-verify">
+      <span class="vstatus ${r.status==='ok'?'s-ok':'s-warn'}">${r.status==='ok'?'✓ 問題なし':'⚠ 要確認'}</span>
+      <div style="margin-top:5px;font-size:11px">${esc(r.accuracy)}</div>
+      ${r.issues?`<div style="margin-top:4px;font-size:11px;color:var(--atx)">${esc(r.issues)}</div>`:''}
+      ${r.suggestion?`<div style="margin-top:4px;font-size:11px"><b>修正案:</b> ${esc(r.suggestion)}</div>`:''}
+    </div>`;
+  }catch(err){if(el)el.innerHTML='<div class="sc-verify" style="color:var(--atx)">エラーが発生しました</div>';}
+}
+
+// ── AI verify all (modal) ──
+function openVerifyModal(){
+  const art=getCurrentArticle();if(!art)return;
+  const srcs=art.sources.filter(s=>s.quote&&s.translation);
+  const body=document.getElementById('verifyModalBody');
+  if(!srcs.length){body.innerHTML='<div style="padding:20px;text-align:center;color:var(--tx3);font-size:13px">原文と和訳が両方入力された引用元がありません</div>';
+    document.getElementById('runVerifyBtn').style.display='none';
+  }else{
+    document.getElementById('runVerifyBtn').style.display='';
+    body.innerHTML='<div class="verify-panel">'+srcs.map(s=>`
+      <div class="vc" id="mvc_${s.id}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+          <div><span class="stag ${tagClass(s.type)}">${esc(s.type)}</span>${s.note?`<span style="font-size:11px;color:var(--tx2);margin-left:5px">${esc(s.note)}</span>`:''}</div>
+          <span class="vstatus s-pend" id="mvs_${s.id}">未検証</span>
+        </div>
+        <div style="font-size:11px;font-style:italic;color:var(--tx2)">"${esc(s.quote.slice(0,80))}${s.quote.length>80?'...':''}"</div>
+        <div style="font-size:11px;margin-top:3px">和訳: ${esc(s.translation)}</div>
+        <div id="mvr_${s.id}"></div>
+      </div>`).join('')+'</div>';
+  }
+  document.getElementById('verifyModal').classList.remove('hidden');
+}
+function closeVerifyModal(){document.getElementById('verifyModal').classList.add('hidden');}
+
+async function runVerifyAll(){
+  const art=getCurrentArticle();if(!art)return;
+  const srcs=art.sources.filter(s=>s.quote&&s.translation);
+  document.getElementById('runVerifyBtn').disabled=true;
+  for(const s of srcs){
+    const se=document.getElementById(`mvs_${s.id}`);
+    const re=document.getElementById(`mvr_${s.id}`);
+    if(se)se.innerHTML='<span class="spinner"></span>';
+    try{
+      const resp=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,
+          messages:[{role:'user',content:`海外特派員の引用翻訳チェッカー。JSONのみ返答。\n原文: ${s.quote}\n和訳: ${s.translation}\n{"status":"ok"or"warn","issues":"問題点","suggestion":"修正案","accuracy":"精度一言"}`}]})
+      });
+      const data=await resp.json();
+      const text=(data.content||[]).map(i=>i.text||'').join('');
+      let r;try{r=JSON.parse(text.replace(/```json|```/g,'').trim());}catch(e){r={status:'warn',issues:'解析エラー',suggestion:'',accuracy:''};}
+      if(se){se.className=`vstatus ${r.status==='ok'?'s-ok':'s-warn'}`;se.textContent=r.status==='ok'?'✓ 問題なし':'⚠ 要確認';}
+      if(re)re.innerHTML=`<div style="font-size:11px;margin-top:5px;padding:5px 7px;background:var(--bg2);border-radius:var(--r)">
+        ${esc(r.accuracy)}${r.issues?`<br><span style="color:var(--atx)">${esc(r.issues)}</span>`:''}
+        ${r.suggestion?`<br><b>修正案:</b> ${esc(r.suggestion)}`:''}
+      </div>`;
+    }catch(err){if(se){se.className='vstatus s-warn';se.textContent='エラー';}}
+  }
+  document.getElementById('runVerifyBtn').disabled=false;
+}
+
+// ── pending clips from extension ──
+function checkPending(){
+  try{
+    const raw=localStorage.getItem('reporter_pending_clips');
+    if(!raw)return;
+    window._pendingClips=JSON.parse(raw);
+    localStorage.removeItem('reporter_pending_clips');
+    renderSourcePane();
+  }catch(e){}
+}
+
+function importPending(){
+  const art=getCurrentArticle();if(!art||!activeParaId){alert('まず左の原稿で段落をクリックしてください');return;}
+  (window._pendingClips||[]).forEach(c=>{
+    art.sources.push({id:uid(),paraId:activeParaId,url:c.url||'',quote:c.quote||'',translation:'',type:c.sourceType||'その他',note:c.title||''});
+  });
+  window._pendingClips=null;
+  save();renderSourcePane();renderArtList();
+}
+
+window.addEventListener('storage',e=>{
+  if(e.key==='reporter_pending_clips'&&e.newValue){
+    try{window._pendingClips=JSON.parse(e.newValue);localStorage.removeItem('reporter_pending_clips');renderSourcePane();}catch(err){}
+  }
+});
+
+// ── toggles ──
+function toggleDrawer(){
+  drawerOpen=!drawerOpen;
+  document.getElementById('drawer').classList.toggle('collapsed',!drawerOpen);
+  document.getElementById('drawerToggle').classList.toggle('active',drawerOpen);
+}
+function toggleSourcePane(){
+  sourcePaneOpen=!sourcePaneOpen;
+  document.getElementById('sourcePane').classList.toggle('collapsed',!sourcePaneOpen);
+  document.getElementById('sourcePaneToggle').classList.toggle('active',sourcePaneOpen);
+}
+
+// close modal on bg click
+document.getElementById('verifyModal').addEventListener('click',function(e){if(e.target===this)closeVerifyModal();});
+
+load();
+</script>
+</body>
+</html>
