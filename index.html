@@ -1,6 +1,23 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head>
+<head><script>
+(function(){
+  var PASS_KEY = "reporter_auth_v1";
+  var CORRECT = "press2025";
+  if(sessionStorage.getItem(PASS_KEY) === "ok") return;
+  document.documentElement.style.visibility = "hidden";
+  var entered = prompt("パスワードを入力してください:");
+  if(entered === CORRECT){
+    sessionStorage.setItem(PASS_KEY, "ok");
+    document.documentElement.style.visibility = "";
+  } else {
+    document.documentElement.style.visibility = "";
+    document.open();
+    document.write('<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,sans-serif;color:#888;font-size:14px">アクセスが拒否されました</div>');
+    document.close();
+  }
+})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>記者原稿ツール</title>
@@ -151,7 +168,7 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
     <span class="save-status" id="saveStatus"></span>
     <div style="flex:1"></div>
     <button class="tbtn" onclick="openAddSourceModal(null)"><i class="ti ti-plus"></i> 引用元を追加</button>
-    <button class="tbtn" onclick="openVerifyModal()"><i class="ti ti-language"></i> AI翻訳検証</button>
+    <button class="tbtn" onclick="copyAllForVerify()"><i class="ti ti-clipboard-copy"></i> 検証用コピー</button>
   </div>
 
   <div class="workspace">
@@ -210,12 +227,6 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
   </div>
 </div>
 
-<!-- verify modal -->
-<div class="modal-bg hidden" id="verifyModal">
-  <div class="modal" style="width:640px">
-    <h2><i class="ti ti-language"></i> AI翻訳検証</h2>
-    <p style="font-size:12px;color:var(--tx2);margin-bottom:14px">各引用元について、原文・和訳の整合性に加え、紐付いた段落の記述との整合性もチェックします。</p>
-    <div id="verifyBody" style="max-height:55vh;overflow-y:auto"></div>
     <div class="modal-footer">
       <button class="mbtn" onclick="closeModal('verifyModal')">閉じる</button>
       <button class="mbtn primary" id="runVerifyBtn" onclick="runVerifyAll()"><i class="ti ti-robot"></i> 全件検証開始</button>
@@ -397,7 +408,7 @@ function renderSources(){
       <div class="sc-actions">
         <button class="sbtn" onclick="copyQuote('${s.id}')"><i class="ti ti-copy" style="font-size:11px"></i>原文コピー</button>
         <button class="sbtn" onclick="openAddSourceModal('${s.id}')"><i class="ti ti-edit" style="font-size:11px"></i>編集</button>
-        ${s.quote?`<button class="sbtn verify-btn" onclick="verifyOne('${s.id}')"><i class="ti ti-language" style="font-size:11px"></i>AI検証</button>`:''}
+        
       </div>
       <div id="vr_${s.id}"></div>
     </div>`;
@@ -497,99 +508,30 @@ function copyQuote(id){
   if(btns[0]){const o=btns[0].innerHTML;btns[0].innerHTML='<i class="ti ti-check" style="font-size:11px"></i>コピー完了';setTimeout(()=>btns[0].innerHTML=o,1500);}
 }
 
-// ── AI verify single (with para context) ──
-async function verifyOne(id){
-  const art=getCurrentArticle();if(!art)return;
-  const s=art.sources.find(x=>x.id===id);if(!s)return;
-  const el=document.getElementById(`vr_${id}`);
-  if(el)el.innerHTML='<div class="sc-verify-result"><span class="spinner"></span> AI検証中...</div>';
-
-  // Get linked paragraph text
-  const paras=getParas(art.text);
-  const linkedPara=s.paraNum?paras.find(p=>p.num===s.paraNum):null;
-
-  const r=await callVerifyAPI(s.quote,s.translation,linkedPara?.text||null);
-  if(el)el.innerHTML=`<div class="sc-verify-result">
-    <span class="vstatus ${r.status==='ok'?'s-ok':'s-warn'}">${r.status==='ok'?'✓ 問題なし':'⚠ 要確認'}</span>
-    <div style="margin-top:5px">${esc(r.accuracy)}</div>
-    ${r.para_check?`<div style="margin-top:4px;color:var(--blue)"><i class="ti ti-file-text" style="font-size:10px"></i> 段落との整合: ${esc(r.para_check)}</div>`:''}
-    ${r.issues?`<div style="margin-top:4px;color:var(--atx)">${esc(r.issues)}</div>`:''}
-    ${r.suggestion?`<div style="margin-top:4px"><b>修正案:</b> ${esc(r.suggestion)}</div>`:''}
-  </div>`;
-}
-
-// ── AI verify all ──
-function openVerifyModal(){
-  const art=getCurrentArticle();if(!art)return;
-  const srcs=art.sources.filter(s=>s.quote);
-  const body=document.getElementById('verifyBody');
-  if(!srcs.length){
-    body.innerHTML='<div style="padding:20px;text-align:center;color:var(--tx3);font-size:13px">引用テキストが登録された引用元がありません</div>';
-    document.getElementById('runVerifyBtn').style.display='none';
-  } else {
-    document.getElementById('runVerifyBtn').style.display='';
-    const paras=getParas(art.text);
-    body.innerHTML=srcs.map(s=>{
-      const linkedPara=s.paraNum?paras.find(p=>p.num===s.paraNum):null;
-      return `<div class="vc" id="mvc_${s.id}">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <div style="display:flex;align-items:center;gap:5px">
-            <span class="stag ${tagClass(s.type)}">${esc(s.type)}</span>
-            ${s.paraNum?`<span style="font-size:10px;background:var(--gbg);color:var(--gtx);padding:1px 6px;border-radius:4px">段落${s.paraNum}</span>`:'<span style="font-size:10px;color:var(--tx3)">段落未紐付け</span>'}
-            ${s.note?`<span style="font-size:11px;color:var(--tx2)">${esc(s.note)}</span>`:''}
-          </div>
-          <span class="vstatus s-pend" id="mvs_${s.id}">未検証</span>
-        </div>
-        <div style="font-size:11px;font-style:italic;color:var(--tx2);margin-bottom:3px">"${esc(s.quote.slice(0,80))}${s.quote.length>80?'...':''}"</div>
-        ${s.translation?`<div style="font-size:11px;color:var(--tx2)">和訳: ${esc(s.translation)}</div>`:'<div style="font-size:11px;color:var(--tx3)">（和訳なし）</div>'}
-        ${linkedPara?`<div style="font-size:11px;color:var(--blue);margin-top:3px"><i class="ti ti-file-text" style="font-size:10px"></i> 原稿段落: 「${esc(linkedPara.text.slice(0,50))}${linkedPara.text.length>50?'…':''}」</div>`:''}
-        <div id="mvr_${s.id}"></div>
-      </div>`;
-    }).join('');
-  }
-  document.getElementById('verifyModal').classList.remove('hidden');
-}
-
-async function runVerifyAll(){
-  const art=getCurrentArticle();if(!art)return;
-  const srcs=art.sources.filter(s=>s.quote);
-  const btn=document.getElementById('runVerifyBtn');btn.disabled=true;btn.innerHTML='<span class="spinner"></span> 検証中...';
-  const paras=getParas(art.text);
-  for(const s of srcs){
-    const se=document.getElementById(`mvs_${s.id}`);
-    const re=document.getElementById(`mvr_${s.id}`);
-    const vc=document.getElementById(`mvc_${s.id}`);
-    if(se)se.innerHTML='<span class="spinner"></span>';
-    const linkedPara=s.paraNum?paras.find(p=>p.num===s.paraNum):null;
-    const r=await callVerifyAPI(s.quote,s.translation,linkedPara?.text||null);
-    if(se){se.className=`vstatus ${r.status==='ok'?'s-ok':'s-warn'}`;se.textContent=r.status==='ok'?'✓ 問題なし':'⚠ 要確認';}
-    if(vc){vc.className=`vc ${r.status}`;}
-    if(re)re.innerHTML=`<div style="font-size:11px;margin-top:6px;padding:6px 8px;background:var(--bg);border-radius:var(--r);line-height:1.6">
-      ${esc(r.accuracy)}
-      ${r.para_check?`<br><span style="color:var(--blue)">段落整合: ${esc(r.para_check)}</span>`:''}
-      ${r.issues?`<br><span style="color:var(--atx)">${esc(r.issues)}</span>`:''}
-      ${r.suggestion?`<br><b>修正案:</b> ${esc(r.suggestion)}`:''}
-    </div>`;
-  }
-  btn.disabled=false;btn.innerHTML='<i class="ti ti-robot"></i> 全件検証開始';
-}
-
-async function callVerifyAPI(quote, translation, paraText){
-  try{
-    const hasTranslation=translation&&translation.trim();
-    const hasPara=paraText&&paraText.trim();
-    let prompt=`海外特派員の引用検証AIです。以下を分析しJSONのみ返答（backtick不要）。\n\n原文: ${quote}\n`;
-    if(hasTranslation)prompt+=`和訳: ${translation}\n`;
-    if(hasPara)prompt+=`紐付いた原稿段落: ${paraText}\n`;
-    prompt+=`\n以下のJSONで返答:\n{"status":"ok"or"warn","accuracy":"翻訳精度の一言評価${hasTranslation?'':'（和訳なしのためスキップ）'}","issues":"問題点（なければ空）","suggestion":"修正案（なければ空）","para_check":"${hasPara?'原稿段落との整合性チェック':''}${!hasPara?'段落未紐付けのためスキップ':''}"}`;
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:700,messages:[{role:'user',content:prompt}]})
-    });
-    const data=await resp.json();
-    const text=(data.content||[]).map(i=>i.text||'').join('');
-    return JSON.parse(text.replace(/```json|```/g,'').trim());
-  }catch(e){return{status:'warn',accuracy:'',issues:'APIエラー',suggestion:'',para_check:''};}
+// ── copy for Claude verification ──
+function copyAllForVerify(){
+  const art = getCurrentArticle(); if(!art) return;
+  const paras = getParas(art.text);
+  const srcs = art.sources.filter(s => s.quote);
+  if(!srcs.length){ alert('引用テキストが登録された引用元がありません'); return; }
+  
+  let text = '【AI翻訳検証依頼】\n\n';
+  text += '■ 案件: ' + art.title + '\n\n';
+  srcs.forEach((s, i) => {
+    const linkedPara = s.paraNum ? paras.find(p => p.num === s.paraNum) : null;
+    text += `引用元 ${i+1} (${s.type})\n`;
+    if(s.note) text += `備考: ${s.note}\n`;
+    text += `原文: ${s.quote}\n`;
+    if(s.translation) text += `和訳: ${s.translation}\n`;
+    if(linkedPara) text += `原稿段落: ${linkedPara.text}\n`;
+    text += `URL: ${s.url}\n\n`;
+  });
+  text += '上記の引用元について、①原文と和訳の整合性、②原稿段落の記述と引用元の内容の整合性を検証してください。';
+  
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.tbtn[onclick="copyAllForVerify()"]');
+    if(btn){ const o=btn.innerHTML; btn.innerHTML='<i class="ti ti-check"></i> コピー完了！Claudeに貼り付けて'; setTimeout(()=>btn.innerHTML=o, 3000); }
+  }).catch(() => alert('クリップボードへのコピーに失敗しました'));
 }
 
 // ── pending clips ──
