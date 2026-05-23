@@ -548,33 +548,7 @@ function setReadOnlyMode(on){
   topbar.style.background='var(--bg)';topbar.style.borderBottom='0.5px solid var(--bd)';
   if(label)label.style.display='none';
 }
-function applyColumnLayout(){
-  const ta=document.getElementById('editor'),colEd=document.getElementById('colEditor'),wrap=document.getElementById('editorWrap');
-  if(!ta||!colEd||!wrap)return;
-  if(currentColWidth>24){
-    ta.style.display='';ta.style.position='';ta.style.opacity='';ta.style.width='100%';ta.style.height='100%';ta.style.minHeight='400px';
-    colEd.style.display='none';setReadOnlyMode(false);return;
-  }
-  const sp=document.createElement('span');sp.style.cssText='position:absolute;visibility:hidden;font-family:Georgia,serif;font-size:15px;white-space:pre';
-  sp.textContent='あ'.repeat(currentColWidth);document.body.appendChild(sp);const colPx=sp.offsetWidth;document.body.removeChild(sp);
-  const wrapW=wrap.clientWidth-64;const numCols=Math.max(1,Math.floor((wrapW+32)/(colPx+32)));
-  if(numCols<=1){ta.style.display='';ta.style.position='';colEd.style.display='none';setReadOnlyMode(false);return;}
-  ta.style.display='none';colEd.style.display='flex';renderColEditor(colPx,numCols);setReadOnlyMode(true);
-}
-function renderColEditor(colPx,numCols){
-  const ta=document.getElementById('editor'),colEd=document.getElementById('colEditor');
-  const realLines=ta.value.split('\n');const linesPerCol=Math.ceil(realLines.length/numCols)||1;
-  colEd.innerHTML='';
-  for(let c=0;c<numCols;c++){
-    const colLines=realLines.slice(c*linesPerCol,(c+1)*linesPerCol);
-    const colDiv=document.createElement('div');colDiv.style.cssText=`width:${colPx}px;flex-shrink:0`;
-    const colTa=document.createElement('textarea');
-    colTa.style.cssText=`border:none;outline:none;resize:none;background:transparent;font-family:Georgia,serif;font-size:15px;line-height:2;color:var(--tx);caret-color:var(--green);padding:0;width:${colPx}px;overflow:hidden;white-space:pre-wrap;word-break:break-all;min-height:${(colLines.length+2)*30}px`;
-    colTa.value=colLines.join('\n');colTa.dataset.col=String(c);colTa.dataset.startLine=String(c*linesPerCol);
-    colTa.readOnly=true;colTa.style.cursor='default';
-    colDiv.appendChild(colTa);colEd.appendChild(colDiv);
-  }
-}
+
 
 // ── source pane ──
 function renderSources(){
@@ -707,10 +681,8 @@ function highlightParaInEditor(paraNum){
   const lineH = parseFloat(cs.lineHeight) || 30;
   const padTop = 36; // editor-wrap padding
 
-  // Count visual lines before this paragraph (each 
- = 1 line)
-  const allLines = text.split('
-');
+  // Count visual lines before this paragraph (each newline = 1 line)
+  const allLines = text.split('\n');
   let linesBefore = 0;
   for(let i = 0; i < para.lineIdx; i++) linesBefore++;
 
