@@ -155,6 +155,10 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
 /* stock */
 .stock-tag-btn{font-size:10px;padding:2px 8px;border-radius:99px;border:0.5px solid var(--bd2);background:transparent;cursor:pointer;color:var(--tx2);font-family:var(--font)}
 .stock-tag-btn:hover,.stock-tag-btn.active{background:var(--bbg);color:var(--btx);border-color:#B5D4F4}
+.src-tag-chip{font-size:10px;padding:1px 7px;border-radius:99px;background:var(--pbg);color:var(--ptx);display:inline-flex;align-items:center;gap:3px}
+.src-tag-filter-btn{font-size:10px;padding:2px 8px;border-radius:99px;border:0.5px solid var(--bd2);background:transparent;cursor:pointer;color:var(--tx2);font-family:var(--font)}
+.src-tag-filter-btn:hover{background:var(--pbg);color:var(--ptx)}
+.src-tag-filter-btn.active{background:var(--ptx);color:#fff;border-color:var(--ptx)}
 </style>
 </head>
 <body>
@@ -234,6 +238,11 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
         <span class="source-head-title" id="sourceHeadTitle">引用元一覧</span>
         <button class="source-add-btn" onclick="openAddSourceModal(null)"><i class="ti ti-plus" style="font-size:12px"></i>追加</button>
       </div>
+      <div id="srcTagFilterBar" style="display:none;padding:6px 12px;border-bottom:0.5px solid var(--bd);flex-shrink:0;display:flex;gap:3px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:10px;color:var(--tx3);flex-shrink:0">タグ絞込:</span>
+        <div id="srcTagFilters" style="display:flex;gap:3px;flex-wrap:wrap;flex:1"></div>
+        <button class="sbtn" onclick="clearSrcTagFilter()" id="clearTagBtn" style="display:none;font-size:10px">✕ 解除</button>
+      </div>
       <div class="source-body" id="sourceBody"></div>
     </div>
   </div>
@@ -257,6 +266,11 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
       <div class="fl"><label class="flabel">引用テキスト（原文）</label><textarea class="fi" id="nQuote" placeholder="引用したい原文をペースト"></textarea></div>
       <div class="fl"><label class="flabel">和訳メモ（任意）</label><textarea class="fi" id="nTrans" style="min-height:44px" placeholder="自分の訳をメモ"></textarea></div>
       <div class="fl"><label class="flabel">備考</label><input class="fi" id="nNote" placeholder="誰の発言か、文脈など"></div>
+      <div class="fl">
+        <label class="flabel">タグ（カンマ区切り）</label>
+        <input class="fi" id="nTags" placeholder="例: ネタニヤフ, ガザ, 停戦交渉" oninput="showSrcTagSuggestions()">
+        <div id="srcTagHint" style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px"></div>
+      </div>
     </div>
     <div id="srcForm-interview" style="display:none">
       <div class="row2 fl">
@@ -269,6 +283,11 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
       </div>
       <div class="fl"><label class="flabel">発言・メモ内容</label><textarea class="fi" id="iQuote" style="min-height:100px" placeholder="発言内容やメモをここに入力"></textarea></div>
       <div class="fl"><label class="flabel">補足・文脈</label><textarea class="fi" id="iNote" style="min-height:48px" placeholder="取材の背景、オフレコ扱いなど"></textarea></div>
+      <div class="fl">
+        <label class="flabel">タグ（カンマ区切り）</label>
+        <input class="fi" id="iTags" placeholder="例: ネタニヤフ, ガザ" oninput="showSrcTagSuggestions()">
+        <div id="srcTagHint2" style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px"></div>
+      </div>
       <div style="background:var(--abg);border-radius:var(--r);padding:8px 12px;font-size:11px;color:var(--atx);margin-bottom:10px"><i class="ti ti-lock" style="font-size:11px"></i> このデータはブラウザのみに保存されます</div>
     </div>
     <div class="modal-footer">
@@ -561,8 +580,11 @@ function renderSources(){
   title.textContent=activePara?`段落${activePara}の引用元 / 全${art.sources.length}件`:`引用元一覧 (${art.sources.length}件)`;
   let html='';
   if(pending)html+=`<div class="pending-banner"><p><i class="ti ti-clipboard-check"></i> <strong>${window._pendingClips.length}件</strong> 届いています</p><button onclick="importPending()">振り分け</button></div>`;
-  if(!art.sources.length&&!pending){html+='<div class="source-empty"><i class="ti ti-link-off" style="font-size:24px;display:block;margin-bottom:8px"></i>引用元がまだありません</div>';body.innerHTML=html;return;}
-  const sorted=[...art.sources].sort((a,b)=>{const ah=activePara&&a.paraNum===activePara?0:1,bh=activePara&&b.paraNum===activePara?0:1;return ah-bh;});
+  if(!art.sources.length&&!pending){html+='<div class="source-empty"><i class="ti ti-link-off" style="font-size:24px;display:block;margin-bottom:8px"></i>引用元がまだありません</div>';body.innerHTML=html;renderSrcTagFilters();return;}
+  renderSrcTagFilters();
+  let sourcesToShow=[...art.sources];
+  if(srcTagFilter) sourcesToShow=sourcesToShow.filter(s=>(s.tags||[]).includes(srcTagFilter));
+  const sorted=sourcesToShow.sort((a,b)=>{const ah=activePara&&a.paraNum===activePara?0:1,bh=activePara&&b.paraNum===activePara?0:1;return ah-bh;});
   html+=sorted.map(s=>{
     const isH=activePara&&s.paraNum===activePara;
     const badge=s.paraNum?`<span class="sc-para-badge linked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link" style="font-size:9px"></i>段落${s.paraNum}</span>`:`<span class="sc-para-badge unlinked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link-off" style="font-size:9px"></i>紐付け</span>`;
@@ -574,6 +596,7 @@ function renderSources(){
       ${isInt&&intMeta?`<div style="font-size:11px;color:var(--tx);margin-bottom:4px">${intMeta}</div>`:''}
       ${s.quote?`<div class="sc-quote">${esc(s.quote.length>140?s.quote.slice(0,140)+'…':s.quote)}</div>`:''}
       ${s.translation?`<div class="sc-trans">和訳: ${esc(s.translation)}</div>`:''}
+      ${(s.tags||[]).length?`<div style="margin:4px 0;display:flex;flex-wrap:wrap;gap:3px">${s.tags.map(t=>`<span class="src-tag-chip">${esc(t)}</span>`).join('')}</div>`:''}
       ${!isInt&&s.url?`<div class="sc-url"><a href="${esc(s.url)}" target="_blank">${esc(s.url)}</a></div>`:''}
       <div class="sc-actions">
         <button class="sbtn" onclick="copyQuote('${s.id}')"><i class="ti ti-copy" style="font-size:11px"></i>原文コピー</button>
@@ -606,7 +629,59 @@ function closePicker(){document.getElementById('paraPicker').style.display='none
 document.addEventListener('click',e=>{const p=document.getElementById('paraPicker');if(p.style.display!=='none'&&!p.contains(e.target))closePicker();});
 
 // ── add/edit source ──
-let editingSourceId=null,currentSrcTab='web';
+let editingSourceId=null,currentSrcTab='web',srcTagFilter=null;
+
+function getAllSourceTags(){
+  const art = getCurrentArticle();
+  if(!art) return [];
+  return [...new Set((art.sources||[]).flatMap(s=>s.tags||[]))];
+}
+
+function showSrcTagSuggestions(){
+  const allTags = getAllSourceTags();
+  const hints = ['srcTagHint','srcTagHint2'];
+  hints.forEach(hintId => {
+    const hint = document.getElementById(hintId);
+    if(!hint) return;
+    hint.innerHTML = allTags.length
+      ? allTags.map(t=>`<span class="src-tag-chip" style="cursor:pointer" onclick="addSrcTagToInput('${esc(t)}')">${esc(t)}</span>`).join('')
+      : '';
+  });
+}
+
+function addSrcTagToInput(tag){
+  const input = document.getElementById(currentSrcTab==='interview'?'iTags':'nTags');
+  if(!input) return;
+  const cur = input.value.trim();
+  const tags = cur ? cur.split(/[,、]/).map(t=>t.trim()).filter(Boolean) : [];
+  if(!tags.includes(tag)) tags.push(tag);
+  input.value = tags.join(', ');
+}
+
+function renderSrcTagFilters(){
+  const bar = document.getElementById('srcTagFilterBar');
+  const filtersEl = document.getElementById('srcTagFilters');
+  const clearBtn = document.getElementById('clearTagBtn');
+  const tags = getAllSourceTags();
+  if(!tags.length){ if(bar) bar.style.display='none'; return; }
+  if(bar) bar.style.display='flex';
+  if(filtersEl) filtersEl.innerHTML = tags.map(t =>
+    `<div class="src-tag-filter-btn${srcTagFilter===t?' active':''}" onclick="setSrcTagFilter('${esc(t)}')">${esc(t)}</div>`
+  ).join('');
+  if(clearBtn) clearBtn.style.display = srcTagFilter ? '' : 'none';
+}
+
+function setSrcTagFilter(tag){
+  srcTagFilter = srcTagFilter===tag ? null : tag;
+  renderSrcTagFilters();
+  renderSources();
+}
+
+function clearSrcTagFilter(){
+  srcTagFilter = null;
+  renderSrcTagFilters();
+  renderSources();
+}
 function switchSrcTab(tab){
   currentSrcTab=tab;
   document.getElementById('tab-web').classList.toggle('active',tab==='web');
@@ -624,20 +699,23 @@ function openAddSourceModal(sourceId){
       document.getElementById('iWho').value=s.who||'';document.getElementById('iDate').value=s.interviewDate||'';
       document.getElementById('iPlace').value=s.place||'';document.getElementById('iFile').value=s.fileName||'';
       document.getElementById('iQuote').value=s.quote||'';document.getElementById('iNote').value=s.note||'';
+      document.getElementById('iTags').value=(s.tags||[]).join(', ');
     }else{
       switchSrcTab('web');
       document.getElementById('nUrl').value=s.url||'';document.getElementById('nType').value=s.type||'その他';
       document.getElementById('nQuote').value=s.quote||'';document.getElementById('nTrans').value=s.translation||'';
       document.getElementById('nNote').value=s.note||'';
+      document.getElementById('nTags').value=(s.tags||[]).join(', ');
     }
   }else{
     document.getElementById('addSourceTitle').textContent='引用元を追加';
     switchSrcTab('web');
-    ['nUrl','nQuote','nTrans','nNote'].forEach(id=>document.getElementById(id).value='');
+    ['nUrl','nQuote','nTrans','nNote','nTags'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('nType').value='その他';
-    ['iWho','iDate','iPlace','iFile','iQuote','iNote'].forEach(id=>document.getElementById(id).value='');
+    ['iWho','iDate','iPlace','iFile','iQuote','iNote','iTags'].forEach(id=>document.getElementById(id).value='');
   }
   document.getElementById('addSourceModal').classList.remove('hidden');
+  showSrcTagSuggestions();
 }
 function addSource(){
   const art=getCurrentArticle();if(!art)return;
@@ -646,11 +724,13 @@ function addSource(){
   if(currentSrcTab==='interview'){
     const who=document.getElementById('iWho').value.trim(),quote=document.getElementById('iQuote').value.trim();
     if(!who&&!quote){alert('発言者か発言内容を入力してください');return;}
-    src={id:editingSourceId||uid(),sourceKind:'interview',url:'',who,interviewDate:document.getElementById('iDate').value.trim(),place:document.getElementById('iPlace').value.trim(),fileName:document.getElementById('iFile').value.trim(),quote,translation:'',type:'独自取材',note:document.getElementById('iNote').value.trim(),paraNum:existing};
+    const rawITags=document.getElementById('iTags').value.trim();
+    src={id:editingSourceId||uid(),sourceKind:'interview',url:'',who,interviewDate:document.getElementById('iDate').value.trim(),place:document.getElementById('iPlace').value.trim(),fileName:document.getElementById('iFile').value.trim(),quote,translation:'',type:'独自取材',note:document.getElementById('iNote').value.trim(),paraNum:existing,tags:rawITags?rawITags.split(/[,、]/).map(t=>t.trim()).filter(Boolean):[]};
   }else{
     const url=document.getElementById('nUrl').value.trim(),quote=document.getElementById('nQuote').value.trim();
     if(!url&&!quote){alert('URLか引用テキストを入力してください');return;}
-    src={id:editingSourceId||uid(),sourceKind:'web',url,quote,translation:document.getElementById('nTrans').value.trim(),type:document.getElementById('nType').value,note:document.getElementById('nNote').value.trim(),paraNum:existing};
+    const rawTags=document.getElementById('nTags').value.trim();
+    src={id:editingSourceId||uid(),sourceKind:'web',url,quote,translation:document.getElementById('nTrans').value.trim(),type:document.getElementById('nType').value,note:document.getElementById('nNote').value.trim(),paraNum:existing,tags:rawTags?rawTags.split(/[,、]/).map(t=>t.trim()).filter(Boolean):[]};
   }
   if(editingSourceId){const idx=art.sources.findIndex(s=>s.id===editingSourceId);if(idx>=0)art.sources[idx]=src;}
   else art.sources.push(src);
