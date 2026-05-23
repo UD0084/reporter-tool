@@ -23,19 +23,18 @@
   --bd:rgba(255,255,255,0.07);--bd2:rgba(255,255,255,0.13);--bd3:rgba(255,255,255,0.22)}
 }
 html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--tx)}
-
 .shell{display:flex;height:100vh;flex-direction:column;overflow:hidden}
 
 /* topbar */
 .topbar{height:46px;background:var(--bg);border-bottom:0.5px solid var(--bd);display:flex;align-items:center;padding:0 14px;gap:10px;flex-shrink:0}
-.art-select{flex:1;background:transparent;border:none;font-size:14px;font-weight:500;color:var(--tx);outline:none;font-family:var(--font);cursor:pointer;max-width:280px}
+.art-select-btn{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:var(--r);border:0.5px solid var(--bd2);background:transparent;cursor:pointer;font-size:13px;font-weight:500;color:var(--tx);font-family:var(--font);max-width:260px}
+.art-select-btn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
 .topbar-sep{width:0.5px;height:20px;background:var(--bd2);flex-shrink:0}
-.topbar-btn{padding:5px 11px;border-radius:var(--r);border:0.5px solid var(--bd2);background:transparent;cursor:pointer;font-size:12px;color:var(--tx2);font-family:var(--font);display:flex;align-items:center;gap:5px;white-space:nowrap}
-.topbar-btn:hover{background:var(--bg2);color:var(--tx)}
-.topbar-btn.primary{background:var(--green);color:#fff;border-color:var(--green)}
-.topbar-btn.primary:hover{opacity:0.88}
-.topbar-btn.warn{background:var(--abg);color:var(--atx);border-color:#FAC775}
-.save-status{font-size:11px;color:var(--tx3);min-width:60px}
+.tbtn{padding:5px 11px;border-radius:var(--r);border:0.5px solid var(--bd2);background:transparent;cursor:pointer;font-size:12px;color:var(--tx2);font-family:var(--font);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.tbtn:hover{background:var(--bg2);color:var(--tx)}
+.tbtn.primary{background:var(--green);color:#fff;border-color:var(--green)}
+.tbtn.primary:hover{opacity:0.88}
+.save-status{font-size:11px;color:var(--tx3);min-width:56px}
 
 .workspace{display:flex;flex:1;overflow:hidden}
 
@@ -56,7 +55,7 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 .source-empty{text-align:center;padding:40px 16px;color:var(--tx3);font-size:12px;line-height:1.9}
 
 /* source cards */
-.sc{background:var(--bg);border:0.5px solid var(--bd);border-radius:var(--r);padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:border-color 0.15s,box-shadow 0.15s}
+.sc{background:var(--bg);border:0.5px solid var(--bd);border-radius:var(--r);padding:10px 12px;margin-bottom:8px;transition:border-color 0.15s,box-shadow 0.15s;cursor:default}
 .sc:hover{border-color:var(--bd2)}
 .sc.highlighted{border-color:var(--green);box-shadow:0 0 0 2px rgba(29,158,117,0.15)}
 .sc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:5px}
@@ -65,7 +64,10 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 .t-research{background:var(--abg);color:var(--atx)}.t-media{background:var(--pbg);color:var(--ptx)}
 .t-other{background:var(--bg2);color:var(--tx2)}
 .sc-note{font-size:11px;color:var(--tx2);margin-left:5px}
-.sc-para-badge{font-size:10px;background:var(--gbg);color:var(--gtx);padding:1px 6px;border-radius:var(--r);margin-left:4px}
+.sc-para-badge{font-size:10px;padding:1px 7px;border-radius:var(--r);font-weight:500;margin-left:4px;cursor:pointer;display:inline-flex;align-items:center;gap:3px}
+.sc-para-badge.linked{background:var(--gbg);color:var(--gtx)}
+.sc-para-badge.unlinked{background:var(--bg2);color:var(--tx3);border:0.5px dashed var(--bd2)}
+.sc-para-badge:hover{opacity:0.75}
 .sc-quote{font-size:12px;font-style:italic;border-left:2px solid var(--bd2);padding-left:7px;margin:5px 0;line-height:1.5;color:var(--tx)}
 .sc-trans{font-size:11px;color:var(--tx2);line-height:1.5;margin:3px 0}
 .sc-url{font-size:10px;color:var(--tx3);word-break:break-all;margin-top:3px}
@@ -80,6 +82,16 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 .s-ok{background:var(--gbg);color:var(--gtx)}.s-warn{background:var(--abg);color:var(--atx)}.s-pend{background:var(--bg2);color:var(--tx2)}
 .spinner{display:inline-block;width:10px;height:10px;border:2px solid var(--bd2);border-top-color:var(--tx2);border-radius:50%;animation:spin 0.6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* para picker dropdown */
+.para-picker{position:absolute;z-index:200;background:var(--bg);border:0.5px solid var(--bd2);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,0.12);width:260px;max-height:280px;overflow-y:auto}
+.para-picker-head{padding:8px 12px;border-bottom:0.5px solid var(--bd);font-size:11px;font-weight:500;color:var(--tx2)}
+.para-picker-item{padding:8px 12px;cursor:pointer;font-size:12px;color:var(--tx);line-height:1.4;border-bottom:0.5px solid var(--bd)}
+.para-picker-item:hover{background:var(--gbg);color:var(--gtx)}
+.para-picker-item.active{background:var(--gbg);color:var(--gtx)}
+.para-picker-item .para-num{font-size:10px;font-weight:600;color:var(--tx3);margin-bottom:2px}
+.para-picker-unlink{padding:8px 12px;cursor:pointer;font-size:12px;color:var(--tx3);display:flex;align-items:center;gap:5px}
+.para-picker-unlink:hover{background:var(--bg2);color:var(--tx)}
 
 /* pending banner */
 .pending-banner{background:var(--gbg);border:0.5px solid #9FE1CB;border-radius:var(--r);padding:9px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -96,17 +108,12 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 .mbtn:hover{background:var(--bg2)}
 .mbtn.primary{background:var(--green);color:#fff;border-color:var(--green)}
 .mbtn.primary:hover{opacity:0.88}
-
-/* form */
 .fl{margin-bottom:10px}
 .flabel{font-size:10px;color:var(--tx2);font-weight:500;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:3px}
 .fi{width:100%;padding:7px 10px;border:0.5px solid var(--bd2);border-radius:var(--r);background:var(--bg);color:var(--tx);font-size:13px;outline:none;font-family:var(--font)}
 .fi:focus{border-color:var(--bd3)}
 textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-
-/* article list modal */
-.art-list-modal{max-height:320px;overflow-y:auto;margin-bottom:14px}
 .ali{padding:9px 12px;border-radius:var(--r);cursor:pointer;border:0.5px solid transparent;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between}
 .ali:hover{background:var(--bg2);border-color:var(--bd)}
 .ali.active{background:var(--gbg);border-color:#9FE1CB}
@@ -116,24 +123,24 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
 </head>
 <body>
 <div class="shell">
-
-  <!-- topbar -->
   <div class="topbar">
-    <button class="topbar-btn" onclick="openArticleModal()"><i class="ti ti-layout-sidebar"></i> <span id="currentTitle">案件を選択</span> <i class="ti ti-chevron-down" style="font-size:11px"></i></button>
+    <button class="art-select-btn" onclick="openArticleModal()">
+      <i class="ti ti-file-text" style="font-size:14px;flex-shrink:0"></i>
+      <span id="currentTitle">案件を選択</span>
+      <i class="ti ti-chevron-down" style="font-size:11px;flex-shrink:0"></i>
+    </button>
     <div class="topbar-sep"></div>
-    <button class="topbar-btn primary" onclick="saveArticle()"><i class="ti ti-device-floppy"></i> 保存</button>
+    <button class="tbtn primary" onclick="saveArticle()"><i class="ti ti-device-floppy"></i> 保存</button>
     <span class="save-status" id="saveStatus"></span>
     <div style="flex:1"></div>
-    <button class="topbar-btn" onclick="openAddSourceModal(null)"><i class="ti ti-plus"></i> 引用元を追加</button>
-    <button class="topbar-btn" onclick="openVerifyModal()"><i class="ti ti-language"></i> AI翻訳検証</button>
+    <button class="tbtn" onclick="openAddSourceModal(null)"><i class="ti ti-plus"></i> 引用元を追加</button>
+    <button class="tbtn" onclick="openVerifyModal()"><i class="ti ti-language"></i> AI翻訳検証</button>
   </div>
 
   <div class="workspace">
-
-    <!-- editor -->
     <div class="editor-pane">
       <div class="editor-wrap">
-        <textarea class="editor-textarea" id="editor" placeholder="原稿をここに入力してください...&#10;&#10;段落ごとに改行してください。段落をクリックすると、右パネルの対応する引用元がハイライトされます。"></textarea>
+        <textarea class="editor-textarea" id="editor" placeholder="原稿をここに入力してください..."></textarea>
       </div>
       <div class="editor-footer">
         <span id="charCount">0 文字</span>
@@ -142,7 +149,6 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
       </div>
     </div>
 
-    <!-- source pane -->
     <div class="source-pane">
       <div class="source-head">
         <span class="source-head-title">引用元一覧</span>
@@ -150,21 +156,23 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
       </div>
       <div class="source-body" id="sourceBody"></div>
     </div>
-
   </div>
 </div>
+
+<!-- para picker (floating) -->
+<div id="paraPicker" class="para-picker" style="display:none"></div>
 
 <!-- article modal -->
 <div class="modal-bg hidden" id="articleModal">
   <div class="modal">
     <h2>案件を選択 / 新規作成</h2>
-    <div class="art-list-modal" id="artListModal"></div>
+    <div style="max-height:320px;overflow-y:auto;margin-bottom:14px" id="artListModal"></div>
     <button class="mbtn primary" onclick="newArticle()" style="width:100%"><i class="ti ti-plus"></i> 新規案件を作成</button>
     <div class="modal-footer"><button class="mbtn" onclick="closeModal('articleModal')">閉じる</button></div>
   </div>
 </div>
 
-<!-- add source modal -->
+<!-- add/edit source modal -->
 <div class="modal-bg hidden" id="addSourceModal">
   <div class="modal">
     <h2 id="addSourceTitle">引用元を追加</h2>
@@ -177,11 +185,6 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
     <div class="fl"><label class="flabel">引用テキスト（原文）</label><textarea class="fi" id="nQuote" placeholder="引用したい原文をここにペースト"></textarea></div>
     <div class="fl"><label class="flabel">和訳メモ（任意）</label><textarea class="fi" id="nTrans" placeholder="自分の訳をメモ（後でAI検証できます）" style="min-height:44px"></textarea></div>
     <div class="fl"><label class="flabel">備考</label><input class="fi" id="nNote" placeholder="誰の発言か、文脈など"></div>
-    <div class="fl">
-      <label class="flabel">紐付ける段落番号（任意）</label>
-      <input class="fi" id="nPara" type="number" min="1" placeholder="例: 3（空欄でも可）">
-      <div style="font-size:11px;color:var(--tx3);margin-top:3px" id="paraPreview"></div>
-    </div>
     <div class="modal-footer">
       <button class="mbtn" onclick="closeModal('addSourceModal')">キャンセル</button>
       <button class="mbtn primary" onclick="addSource()"><i class="ti ti-check"></i> 保存</button>
@@ -204,7 +207,8 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
 <script>
 const SK='reporter_v4';
 let state={articles:[],currentId:null};
-let activePara=null; // 1-indexed
+let activePara=null;
+let pickerSourceId=null;
 
 function load(){
   try{const d=localStorage.getItem(SK);if(d)state=JSON.parse(d);}catch(e){}
@@ -214,29 +218,35 @@ function load(){
 }
 function save(silent){
   const art=getCurrentArticle();
-  if(art){art.text=document.getElementById('editor').value;}
+  if(art)art.text=document.getElementById('editor').value;
   try{localStorage.setItem(SK,JSON.stringify(state));}catch(e){}
   if(!silent){
     const el=document.getElementById('saveStatus');
-    el.textContent='保存しました';
+    el.textContent='保存しました ✓';
     setTimeout(()=>el.textContent='',2000);
   }
 }
 function autoSave(){
   const art=getCurrentArticle();
-  if(art){
-    art.text=document.getElementById('editor').value;
-    updateFooter();
-  }
+  if(art){art.text=document.getElementById('editor').value;updateFooter();}
   try{localStorage.setItem(SK,JSON.stringify(state));}catch(e){}
 }
 function saveArticle(){save(false);}
-
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
 function tagClass(t){return({'SNS/X':'t-sns','国連・公式':'t-un','研究機関':'t-research','メディア':'t-media','その他':'t-other'}[t]||'t-other');}
-
 function getCurrentArticle(){return state.articles.find(a=>a.id===state.currentId)||null;}
+
+function getParas(text){
+  const lines=(text||'').split('\n');
+  const result=[];
+  lines.forEach((line,lineIdx)=>{
+    if(line.trim()){
+      result.push({num:result.length+1,text:line.trim(),lineIdx});
+    }
+  });
+  return result;
+}
 
 function newArticle(silent){
   const a={id:uid(),title:'新規案件 '+(state.articles.length+1),createdAt:new Date().toLocaleDateString('ja'),text:'',sources:[]};
@@ -244,44 +254,34 @@ function newArticle(silent){
   save(true);renderTopbar();renderEditor();renderSources();
   if(!silent)closeModal('articleModal');
 }
-
 function selectArticle(id){
-  save(true);
-  state.currentId=id;activePara=null;
+  save(true);state.currentId=id;activePara=null;
   renderTopbar();renderEditor();renderSources();
   closeModal('articleModal');
 }
-
 function deleteArticle(id,e){
   e.stopPropagation();
   if(!confirm('この案件を削除しますか？'))return;
   state.articles=state.articles.filter(a=>a.id!==id);
   if(state.currentId===id)state.currentId=state.articles[0]?.id||null;
-  save(true);renderTopbar();renderEditor();renderSources();
-  renderArtListModal();
+  save(true);renderTopbar();renderEditor();renderSources();renderArtListModal();
 }
-
 function renameArticle(id,e){
   e.stopPropagation();
   const art=state.articles.find(a=>a.id===id);if(!art)return;
   const v=prompt('案件名を変更:',art.title);
-  if(v===null||!v.trim())return;
-  art.title=v.trim();save(true);renderTopbar();renderArtListModal();
+  if(v&&v.trim()){art.title=v.trim();save(true);renderTopbar();renderArtListModal();}
 }
 
-// ── render ──
 function renderTopbar(){
   const art=getCurrentArticle();
   document.getElementById('currentTitle').textContent=art?art.title:'案件を選択';
 }
-
 function renderEditor(){
   const art=getCurrentArticle();
-  const ta=document.getElementById('editor');
-  ta.value=art?art.text:'';
+  document.getElementById('editor').value=art?art.text:'';
   updateFooter();
 }
-
 function updateFooter(){
   const art=getCurrentArticle();if(!art)return;
   const text=art.text||'';
@@ -289,41 +289,37 @@ function updateFooter(){
   document.getElementById('charCount').textContent=text.length+' 文字';
   document.getElementById('paraCount').textContent=paras.length+' 段落';
   if(activePara){
-    const preview=(paras[activePara-1]||'').slice(0,30);
-    document.getElementById('activeParaInfo').textContent=`段落${activePara}を選択中${preview?': 「'+preview+'...」':''}`;
+    const p=paras.find(p=>p.num===activePara);
+    document.getElementById('activeParaInfo').textContent=p?`段落${activePara}を選択中: 「${p.text.slice(0,24)}${p.text.length>24?'…':''}」`:'';
   } else {
     document.getElementById('activeParaInfo').textContent='';
   }
 }
 
-function getParas(text){
-  return (text||'').split('\n').map(s=>s.trim()).filter(s=>s.length>0);
-}
-
 function getParaAtCursor(){
   const ta=document.getElementById('editor');
-  const text=ta.value;
   const pos=ta.selectionStart;
-  const before=text.substring(0,pos);
-  const lines=text.split('\n');
-  let charCount=0,paraNum=0;
-  for(let i=0;i<lines.length;i++){
-    if(lines[i].trim())paraNum++;
-    charCount+=lines[i].length+1;
-    if(charCount>pos)return lines[i].trim()?paraNum:null;
+  const lines=ta.value.substring(0,pos).split('\n');
+  const lineIdx=lines.length-1;
+  const paras=getParas(ta.value);
+  // find which para this line belongs to
+  for(let i=paras.length-1;i>=0;i--){
+    if(paras[i].lineIdx<=lineIdx)return paras[i].num;
   }
   return null;
 }
 
-// editor events
-document.getElementById('editor').addEventListener('input',autoSave);
-document.getElementById('editor').addEventListener('click',()=>{
+const editor=document.getElementById('editor');
+editor.addEventListener('input',autoSave);
+editor.addEventListener('click',()=>{
   const p=getParaAtCursor();
   if(p!==activePara){activePara=p;updateFooter();renderSources();}
 });
-document.getElementById('editor').addEventListener('keyup',()=>{
-  const p=getParaAtCursor();
-  if(p!==activePara){activePara=p;updateFooter();renderSources();}
+editor.addEventListener('keyup',e=>{
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Home','End'].includes(e.key)){
+    const p=getParaAtCursor();
+    if(p!==activePara){activePara=p;updateFooter();renderSources();}
+  }
 });
 
 // ── source pane ──
@@ -337,75 +333,109 @@ function renderSources(){
 
   if(pending){
     html+=`<div class="pending-banner">
-      <p><i class="ti ti-clipboard-check"></i> 拡張機能から <strong>${window._pendingClips.length}件</strong> 届いています</p>
+      <p><i class="ti ti-clipboard-check"></i> <strong>${window._pendingClips.length}件</strong> 届いています</p>
       <button onclick="importPending()">取り込む</button>
     </div>`;
   }
 
   if(!art.sources.length&&!pending){
-    html+='<div class="source-empty"><i class="ti ti-link-off" style="font-size:24px;display:block;margin-bottom:8px"></i>引用元がまだありません<br><span style="font-size:11px">上部の「引用元を追加」から登録できます</span></div>';
+    html+='<div class="source-empty"><i class="ti ti-link-off" style="font-size:24px;display:block;margin-bottom:8px"></i>引用元がまだありません<br><span style="font-size:11px">上の「追加」から登録できます</span></div>';
     body.innerHTML=html;return;
   }
 
   html+=art.sources.map(s=>{
     const isHighlighted=activePara&&s.paraNum===activePara;
-    return `<div class="sc${isHighlighted?' highlighted':''}" id="sc_${s.id}" onclick="highlightFromCard('${s.id}')">
+    const badgeHtml=s.paraNum
+      ?`<span class="sc-para-badge linked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link" style="font-size:9px"></i>段落${s.paraNum}</span>`
+      :`<span class="sc-para-badge unlinked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link-off" style="font-size:9px"></i>段落を紐付け</span>`;
+    return `<div class="sc${isHighlighted?' highlighted':''}" id="sc_${s.id}">
       <div class="sc-top">
-        <div style="flex:1;min-width:0">
+        <div style="flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:3px">
           <span class="stag ${tagClass(s.type)}">${esc(s.type)}</span>
-          ${s.paraNum?`<span class="sc-para-badge">¶${s.paraNum}</span>`:''}
+          ${badgeHtml}
           ${s.note?`<span class="sc-note">${esc(s.note)}</span>`:''}
         </div>
         <button class="sbtn del" onclick="deleteSource(event,'${s.id}')"><i class="ti ti-trash" style="font-size:11px"></i></button>
       </div>
       ${s.quote?`<div class="sc-quote">${esc(s.quote.length>120?s.quote.slice(0,120)+'…':s.quote)}</div>`:''}
       ${s.translation?`<div class="sc-trans">和訳: ${esc(s.translation)}</div>`:''}
-      <div class="sc-url"><a href="${esc(s.url)}" target="_blank" onclick="event.stopPropagation()">${esc(s.url)}</a></div>
+      <div class="sc-url"><a href="${esc(s.url)}" target="_blank">${esc(s.url)}</a></div>
       <div class="sc-actions">
-        <button class="sbtn" onclick="event.stopPropagation();copyQuote('${s.id}')"><i class="ti ti-copy" style="font-size:11px"></i>原文コピー</button>
-        <button class="sbtn" onclick="event.stopPropagation();openAddSourceModal('${s.id}')"><i class="ti ti-edit" style="font-size:11px"></i>編集</button>
-        ${s.quote&&s.translation?`<button class="sbtn" onclick="event.stopPropagation();verifyOne('${s.id}')"><i class="ti ti-check" style="font-size:11px"></i>訳を検証</button>`:''}
+        <button class="sbtn" onclick="copyQuote('${s.id}')"><i class="ti ti-copy" style="font-size:11px"></i>原文コピー</button>
+        <button class="sbtn" onclick="openAddSourceModal('${s.id}')"><i class="ti ti-edit" style="font-size:11px"></i>編集</button>
+        ${s.quote&&s.translation?`<button class="sbtn" onclick="verifyOne('${s.id}')"><i class="ti ti-check" style="font-size:11px"></i>訳を検証</button>`:''}
       </div>
       <div id="vr_${s.id}"></div>
     </div>`;
   }).join('');
   body.innerHTML=html;
 
-  // scroll highlighted into view
   if(activePara){
     const first=body.querySelector('.sc.highlighted');
     if(first)first.scrollIntoView({behavior:'smooth',block:'nearest'});
   }
 }
 
-function highlightFromCard(id){
+// ── para picker ──
+function openParaPicker(e,sourceId){
+  e.stopPropagation();
   const art=getCurrentArticle();if(!art)return;
-  const s=art.sources.find(x=>x.id===id);if(!s||!s.paraNum)return;
-  // highlight paragraph in editor
-  activePara=s.paraNum;
-  updateFooter();
-  renderSources();
-  // scroll editor to paragraph
-  const ta=document.getElementById('editor');
-  const lines=ta.value.split('\n');
-  let paraNum=0,charPos=0;
-  for(let i=0;i<lines.length;i++){
-    if(lines[i].trim())paraNum++;
-    if(paraNum===s.paraNum){
-      ta.focus();ta.setSelectionRange(charPos,charPos+lines[i].length);
-      break;
-    }
-    charPos+=lines[i].length+1;
+  pickerSourceId=sourceId;
+  const paras=getParas(art.text);
+  const s=art.sources.find(x=>x.id===sourceId);
+  const picker=document.getElementById('paraPicker');
+
+  let html=`<div class="para-picker-head">どの段落に紐付けますか？</div>`;
+  if(!paras.length){
+    html+='<div style="padding:10px 12px;font-size:12px;color:var(--tx3)">原稿に段落がありません</div>';
+  } else {
+    html+=paras.map(p=>`
+      <div class="para-picker-item${s&&s.paraNum===p.num?' active':''}" onclick="linkToPara(${p.num})">
+        <div class="para-num">段落 ${p.num}</div>
+        <div>${esc(p.text.slice(0,48))}${p.text.length>48?'…':''}</div>
+      </div>`).join('');
   }
+  if(s&&s.paraNum){
+    html+=`<div class="para-picker-unlink" onclick="linkToPara(null)"><i class="ti ti-link-off" style="font-size:12px"></i>紐付けを解除</div>`;
+  }
+  picker.innerHTML=html;
+
+  // position near the badge
+  const rect=e.target.getBoundingClientRect();
+  picker.style.display='block';
+  let top=rect.bottom+6;
+  let left=rect.left;
+  // keep within viewport
+  if(left+260>window.innerWidth)left=window.innerWidth-268;
+  if(top+280>window.innerHeight)top=rect.top-286;
+  picker.style.top=top+'px';
+  picker.style.left=left+'px';
 }
 
-// ── add/edit source modal ──
+function linkToPara(num){
+  const art=getCurrentArticle();if(!art||!pickerSourceId)return;
+  const s=art.sources.find(x=>x.id===pickerSourceId);
+  if(s)s.paraNum=num||null;
+  save(true);
+  closePicker();
+  renderSources();
+}
+
+function closePicker(){
+  document.getElementById('paraPicker').style.display='none';
+  pickerSourceId=null;
+}
+
+document.addEventListener('click',e=>{
+  const picker=document.getElementById('paraPicker');
+  if(picker.style.display!=='none'&&!picker.contains(e.target))closePicker();
+});
+
+// ── add/edit source ──
 let editingSourceId=null;
 function openAddSourceModal(sourceId){
   editingSourceId=sourceId;
   const art=getCurrentArticle();
-  const modal=document.getElementById('addSourceModal');
-
   if(sourceId){
     const s=art.sources.find(x=>x.id===sourceId);if(!s)return;
     document.getElementById('addSourceTitle').textContent='引用元を編集';
@@ -414,26 +444,12 @@ function openAddSourceModal(sourceId){
     document.getElementById('nQuote').value=s.quote||'';
     document.getElementById('nTrans').value=s.translation||'';
     document.getElementById('nNote').value=s.note||'';
-    document.getElementById('nPara').value=s.paraNum||'';
   } else {
     document.getElementById('addSourceTitle').textContent='引用元を追加';
     ['nUrl','nQuote','nTrans','nNote'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('nType').value='その他';
-    document.getElementById('nPara').value=activePara||'';
   }
-  updateParaPreview();
-  modal.classList.remove('hidden');
-}
-
-document.getElementById('nPara').addEventListener('input',updateParaPreview);
-function updateParaPreview(){
-  const art=getCurrentArticle();if(!art)return;
-  const num=parseInt(document.getElementById('nPara').value);
-  const el=document.getElementById('paraPreview');
-  if(!num){el.textContent='';return;}
-  const paras=getParas(art.text);
-  const p=paras[num-1];
-  el.textContent=p?`→ 「${p.slice(0,40)}${p.length>40?'…':''}」`:'（その段落は存在しません）';
+  document.getElementById('addSourceModal').classList.remove('hidden');
 }
 
 function addSource(){
@@ -441,14 +457,13 @@ function addSource(){
   const url=document.getElementById('nUrl').value.trim();
   const quote=document.getElementById('nQuote').value.trim();
   if(!url&&!quote){alert('URLか引用テキストを入力してください');return;}
-  const paraNum=parseInt(document.getElementById('nPara').value)||null;
   const src={
     id:editingSourceId||uid(),
     url,quote,
     translation:document.getElementById('nTrans').value.trim(),
     type:document.getElementById('nType').value,
     note:document.getElementById('nNote').value.trim(),
-    paraNum
+    paraNum:editingSourceId?art.sources.find(s=>s.id===editingSourceId)?.paraNum||null:activePara||null
   };
   if(editingSourceId){
     const idx=art.sources.findIndex(s=>s.id===editingSourceId);
@@ -476,10 +491,7 @@ function copyQuote(id){
 }
 
 // ── article modal ──
-function openArticleModal(){
-  renderArtListModal();
-  document.getElementById('articleModal').classList.remove('hidden');
-}
+function openArticleModal(){renderArtListModal();document.getElementById('articleModal').classList.remove('hidden');}
 function renderArtListModal(){
   const el=document.getElementById('artListModal');
   if(!state.articles.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--tx3);font-size:13px">案件がありません</div>';return;}
@@ -502,12 +514,12 @@ async function verifyOne(id){
   const s=art.sources.find(x=>x.id===id);if(!s)return;
   const el=document.getElementById(`vr_${id}`);
   if(el)el.innerHTML='<div class="sc-verify-result"><span class="spinner"></span> 検証中...</div>';
-  const result=await callVerifyAPI(s.quote,s.translation);
+  const r=await callVerifyAPI(s.quote,s.translation);
   if(el)el.innerHTML=`<div class="sc-verify-result">
-    <span class="vstatus ${result.status==='ok'?'s-ok':'s-warn'}">${result.status==='ok'?'✓ 問題なし':'⚠ 要確認'}</span>
-    <div style="margin-top:4px">${esc(result.accuracy)}</div>
-    ${result.issues?`<div style="margin-top:3px;color:var(--atx)">${esc(result.issues)}</div>`:''}
-    ${result.suggestion?`<div style="margin-top:3px"><b>修正案:</b> ${esc(result.suggestion)}</div>`:''}
+    <span class="vstatus ${r.status==='ok'?'s-ok':'s-warn'}">${r.status==='ok'?'✓ 問題なし':'⚠ 要確認'}</span>
+    <div style="margin-top:4px">${esc(r.accuracy)}</div>
+    ${r.issues?`<div style="margin-top:3px;color:var(--atx)">${esc(r.issues)}</div>`:''}
+    ${r.suggestion?`<div style="margin-top:3px"><b>修正案:</b> ${esc(r.suggestion)}</div>`:''}
   </div>`;
 }
 
@@ -537,8 +549,7 @@ function openVerifyModal(){
 async function runVerifyAll(){
   const art=getCurrentArticle();if(!art)return;
   const srcs=art.sources.filter(s=>s.quote&&s.translation);
-  const btn=document.getElementById('runVerifyBtn');
-  btn.disabled=true;
+  const btn=document.getElementById('runVerifyBtn');btn.disabled=true;
   for(const s of srcs){
     const se=document.getElementById(`mvs_${s.id}`);
     const re=document.getElementById(`mvr_${s.id}`);
@@ -558,7 +569,7 @@ async function callVerifyAPI(quote,translation){
     const resp=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,
-        messages:[{role:'user',content:`海外特派員の引用翻訳チェッカー。原文と和訳を比較しJSONのみ返答（backtick不要）。\n原文: ${quote}\n和訳: ${translation}\n{"status":"ok"or"warn","issues":"問題点(okなら空)","suggestion":"修正案(okなら空)","accuracy":"精度の一言評価"}`}]})
+        messages:[{role:'user',content:`海外特派員の引用翻訳チェッカー。JSONのみ返答（backtick不要）。\n原文: ${quote}\n和訳: ${translation}\n{"status":"ok"or"warn","issues":"問題点(okなら空)","suggestion":"修正案(okなら空)","accuracy":"精度の一言評価"}`}]})
     });
     const data=await resp.json();
     const text=(data.content||[]).map(i=>i.text||'').join('');
@@ -590,15 +601,13 @@ window.addEventListener('storage',e=>{
   }
 });
 
-// ── utils ──
 function closeModal(id){document.getElementById(id).classList.add('hidden');}
 document.querySelectorAll('.modal-bg').forEach(bg=>{
   bg.addEventListener('click',function(e){if(e.target===this)this.classList.add('hidden');});
 });
-
-// Cmd+S / Ctrl+S to save
 document.addEventListener('keydown',e=>{
   if((e.metaKey||e.ctrlKey)&&e.key==='s'){e.preventDefault();saveArticle();}
+  if(e.key==='Escape')closePicker();
 });
 
 load();
