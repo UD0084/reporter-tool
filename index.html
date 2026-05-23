@@ -9,7 +9,9 @@
     <div class="fl"><label class="flabel">メモ・タイトル</label><input class="fi" id="sNote" placeholder="何についての記事か、一言メモ"></div>
     <div class="fl">
       <label class="flabel">テーマタグ（カンマ区切り）</label>
-      <input class="fi" id="sTags" placeholder="例: イスラエル, 停戦交渉, ネタニヤフ">
+      <input class="fi" id="sTags" placeholder="例: イスラエル, 停戦交渉, ネタニヤフ" oninput="showTagSuggestions()">
+      <div id="tagSuggestions" style="display:none;margin-top:4px;display:flex;flex-wrap:wrap;gap:4px"></div>
+      <div style="margin-top:5px" id="existingTagsHint"></div>
     </div>
     <div class="modal-footer">
       <button class="mbtn" onclick="closeModal('addStockModal')">キャンセル</button>
@@ -476,6 +478,7 @@ function openAddStockModal(prefill){
   document.getElementById('sNote').value = prefill?.note || '';
   document.getElementById('sTags').value = (prefill?.tags||[]).join(', ');
   document.getElementById('addStockModal').classList.remove('hidden');
+  showTagSuggestions();
 }
 
 function openEditStock(id){
@@ -487,6 +490,25 @@ function openEditStock(id){
   document.getElementById('sNote').value = s.note||'';
   document.getElementById('sTags').value = (s.tags||[]).join(', ');
   document.getElementById('addStockModal').classList.remove('hidden');
+}
+
+function showTagSuggestions(){
+  const allTags = [...new Set([
+    ...(state.stocks||[]).flatMap(s=>s.tags||[]),
+    ...(state.articles||[]).flatMap(a=>(a.sources||[]).flatMap(s=>s.tags||[]))
+  ])];
+  const hint = document.getElementById('existingTagsHint');
+  if(!hint||!allTags.length) return;
+  hint.innerHTML = '<span style="font-size:10px;color:var(--tx3)">既存タグ: </span>' +
+    allTags.map(t=>`<button onclick="addTagToInput('${esc(t)}')" style="font-size:10px;padding:1px 7px;border-radius:99px;border:0.5px solid var(--bd2);background:var(--bg2);cursor:pointer;margin:1px;color:var(--tx2)">${esc(t)}</button>`).join('');
+}
+
+function addTagToInput(tag){
+  const input = document.getElementById('sTags');
+  const current = input.value.trim();
+  const tags = current ? current.split(/[,、]/).map(t=>t.trim()).filter(Boolean) : [];
+  if(!tags.includes(tag)) tags.push(tag);
+  input.value = tags.join(', ');
 }
 
 function saveStock(){
@@ -517,675 +539,110 @@ function deleteStock(id){
 }
 
 function moveStockToSource(id){
-  const art = getCurrentArticle();
-  if(!art){alert('まず左の案件を選択してください');return;}
-  const s = (state.stocks||[]).find(x=>x.id===id);
-  if(!s) return;
-  art.sources.push({
-    id:uid(), url:s.url||'', quote:s.quote||'', translation:'',
-    type:'その他', note:s.note||'', paraNum:activePara||null, sourceKind:'web'
-  });
-  state.stocks=(state.stocks||[]).filter(x=>x.id!==id);
-  save(true);updateStockCount();renderStockPanel();renderSources();renderArtList();
-  alert(`「${s.note||s.url||'ストック'}」を${art.title}の引用元に移動しました`);
+  openMoveToArticlePicker(id, 'stock', '');
 }
 
-// Accept pending clips into stock when no article is selected
-function checkPendingForStock(clips){
-  if(!state.stocks) state.stocks=[];
-  clips.forEach(c=>{
-    state.stocks.unshift({id:uid(),url:c.url||'',quote:c.quote||'',note:c.title||'',tags:[],savedAt:new Date().toLocaleDateString('ja')});
-  });
-  save(true);updateStockCount();
-  if(stockPaneVisible) renderStockPane();
+function openMoveToArticlePicker(itemId, kind, fromArtId){
+  const activeArts = (state.articles||[]).filter(a=>!a.deleted);
+  if(!activeArts.length){alert('案件がありません。先に案件を作成してください。');return;}
+  let existing = document.getElementById('moveToArtModal');
+  if(existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'moveToArtModal';
+  modal.className = 'modal-bg';
+  modal.style.zIndex = '400';
+  modal.innerHTML = `
+    <div class="modal" style="width:420px">
+      <h2><i class="ti ti-transfer"></i> どの案件に移動しますか？</h2>
+      <div style="max-height:320px;overflow-y:auto;margin-bottom:14px">
+        ${activeArts.map(a=>`
+          <div class="ali${a.id===state.currentId?' active':''}" onclick="confirmMoveToArt('${itemId}','${kind}','${fromArtId}','${a.id}')">
+            <div>
+              <div class="ali-title">${esc(a.title)}</div>
+              <div class="ali-meta">${a.createdAt} · 引用${a.sources.length}件</div>
+            </div>
+            <span class="status-badge status-${a.status||'writing'}">${statusLabel(a.status||'writing')}</span>
+          </div>`).join('')}
+      </div>
+      <div class="modal-footer">
+        <button class="mbtn" onclick="document.getElementById('moveToArtModal').remove()">キャンセル</button>
+      </div>
+    </div>`;
+  modal.addEventListener('click', e=>{ if(e.target===modal) modal.remove(); });
+  document.body.appendChild(modal);
 }
 
-function load(){
-  try{const d=localStorage.getItem(SK);if(d)state=JSON.parse(d);}catch(e){}
-  if(!state.stocks) state.stocks=[];
-  if(!state.articles.length)newArticle(true);
-  else{renderArtList();renderEditor();renderSources();}
-  checkPending();
-  updateStockCount();
-  if(stockPaneVisible) renderStockPane();
-}
-
-function save(silent){
-  updateTrashBadge();
-  const art=getCurrentArticle();
-  if(art)art.text=document.getElementById('editor').value;
-  try{localStorage.setItem(SK,JSON.stringify(state));}catch(e){}
-  if(!silent){
-    const el=document.getElementById('saveStatus');
-    el.textContent='保存済み ✓';
-    setTimeout(()=>el.textContent='',2200);
-  }
-}
-function autoSave(){
-  const art=getCurrentArticle();
-  if(art){art.text=document.getElementById('editor').value;updateFooter();}
-  try{localStorage.setItem(SK,JSON.stringify(state));}catch(e){}
-}
-function saveArticle(){save(false);}
-function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
-function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
-function tagClass(t){return({'SNS/X':'t-sns','国連・公式':'t-un','研究機関':'t-research','メディア':'t-media','独自取材':'t-interview','その他':'t-other'}[t]||'t-other');}
-function getCurrentArticle(){return state.articles.find(a=>a.id===state.currentId)||null;}
-
-function getParas(text){
-  const result=[];
-  (text||'').split('\n').forEach((line,li)=>{
-    if(line.trim())result.push({num:result.length+1,text:line.trim(),lineIdx:li});
-  });
-  return result;
-}
-
-// ── articles ──
-function newArticle(silent){
-  if(showingTrash)return;
-  const a={id:uid(),title:'新規案件 '+(state.articles.length+1),createdAt:new Date().toLocaleDateString('ja'),text:'',sources:[]};
-  state.articles.unshift(a);state.currentId=a.id;activePara=null;
-  save(true);renderArtList();renderEditor();renderSources();
-}
-function selectArticle(id){
-  if(showingTrash)return;
-  if(state.currentId===id)return;
-  save(true);state.currentId=id;activePara=null;
-  renderArtList();renderEditor();renderSources();
-}
-let showingTrash = false;
-
-function updateTrashBadge(){
-  const count=state.articles.filter(a=>a.deleted).length;
-  const btn=document.getElementById('trashToggleBtn');
-  if(btn)btn.title=count>0?`ゴミ箱 (${count}件)`:'ゴミ箱';
-}
-
-function toggleTrash(){
-  showingTrash = !showingTrash;
-  const btn = document.getElementById('trashToggleBtn');
-  const label = document.getElementById('sidebarHeadLabel');
-  const newBtn = document.getElementById('newArtBtn');
-  if(showingTrash){
-    btn.style.background='var(--abg)';btn.style.color='var(--atx)';btn.style.borderColor='#FAC775';
-    label.textContent='ゴミ箱';
-    newBtn.style.display='none';
+function confirmMoveToArt(itemId, kind, fromArtId, toArtId){
+  const toArt = state.articles.find(a=>a.id===toArtId);
+  if(!toArt) return;
+  document.getElementById('moveToArtModal')?.remove();
+  if(kind==='stock'){
+    const s = (state.stocks||[]).find(x=>x.id===itemId);
+    if(!s) return;
+    toArt.sources.push({id:uid(),url:s.url||'',quote:s.quote||'',translation:'',type:s.type||'その他',note:s.note||'',paraNum:null,sourceKind:'web',tags:s.tags||[]});
+    state.stocks = (state.stocks||[]).filter(x=>x.id!==itemId);
   } else {
-    btn.style.background='';btn.style.color='';btn.style.borderColor='';
-    label.textContent='案件';
-    newBtn.style.display='';
+    const fromArt = state.articles.find(a=>a.id===fromArtId);
+    if(!fromArt) return;
+    const s = fromArt.sources.find(x=>x.id===itemId);
+    if(!s) return;
+    toArt.sources.push({...s, id:uid(), paraNum:null});
+    fromArt.sources = fromArt.sources.filter(x=>x.id!==itemId);
   }
+  save(true);renderSources();renderArtList();renderStockPane();updateStockCount();
+}
+
+function importPending(){
+  const clips = window._pendingClips||[];
+  if(!clips.length) return;
+  window._pendingClips = null;
+  openImportPicker(clips);
+}
+
+function openImportPicker(clips){
+  let existing = document.getElementById('importPickerModal');
+  if(existing) existing.remove();
+  const activeArts = (state.articles||[]).filter(a=>!a.deleted);
+  const modal = document.createElement('div');
+  modal.id = 'importPickerModal';
+  modal.className = 'modal-bg';
+  modal.style.zIndex = '400';
+  const clipsJson = JSON.stringify(clips);
+  const preview = clips.slice(0,3).map(c=>`<div style="font-size:11px;padding:4px 8px;background:var(--bg2);border-radius:var(--r);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.quote?'"'+c.quote.slice(0,50)+'…"':c.url)}</div>`).join('');
+  const artItems = activeArts.map(a=>`<div class="ali" onclick="importToArticle(window._importClips,'${a.id}')"><div><div class="ali-title">${esc(a.title)}</div><div class="ali-meta">${a.createdAt} · 引用${a.sources.length}件</div></div><span class="status-badge status-${a.status||'writing'}">${statusLabel(a.status||'writing')}</span></div>`).join('');
+  modal.innerHTML = `<div class="modal" style="width:440px">
+    <h2><i class="ti ti-clipboard-check"></i> ${clips.length}件のクリップをどこに保存しますか？</h2>
+    <div style="margin-bottom:12px">${preview}${clips.length>3?`<div style="font-size:10px;color:var(--tx3);padding:2px 8px">他${clips.length-3}件</div>`:''}</div>
+    <div style="font-size:11px;font-weight:500;color:var(--tx2);margin-bottom:6px">保存先:</div>
+    <div class="ali" onclick="importToStock()" style="border:0.5px solid var(--bd2);margin-bottom:4px">
+      <div><div class="ali-title"><i class="ti ti-bookmark" style="color:var(--btx)"></i> ストックに保存</div><div class="ali-meta">後で案件に振り分けられます</div></div>
+    </div>
+    ${artItems}
+    <div class="modal-footer"><button class="mbtn" onclick="document.getElementById('importPickerModal').remove()">キャンセル</button></div>
+  </div>`;
+  modal.addEventListener('click', e=>{ if(e.target===modal) modal.remove(); });
+  window._importClips = clips;
+  document.body.appendChild(modal);
+}
+
+function importToStock(){
+  document.getElementById('importPickerModal')?.remove();
+  checkPendingForStock(window._importClips||[]);
+  window._importClips = null;
+  if(!stockPaneVisible) toggleStockPane();
+}
+
+function importToArticle(clips, artId){
+  document.getElementById('importPickerModal')?.remove();
+  const art = state.articles.find(a=>a.id===artId);
+  if(!art) return;
+  (clips||[]).forEach(c=>{
+    art.sources.push({id:uid(),url:c.url||'',quote:c.quote||'',translation:'',type:c.sourceType||'その他',note:c.title||'',paraNum:null,sourceKind:'web'});
+  });
+  window._importClips = null;
+  save(true);
+  if(state.currentId===artId) renderSources();
   renderArtList();
 }
 
-function deleteArticle(id,e){
-  e.stopPropagation();
-  if(!confirm('ゴミ箱に移動しますか？'))return;
-  const art=state.articles.find(a=>a.id===id);
-  if(art){art.deleted=true;art.deletedAt=new Date().toLocaleString('ja');}
-  if(state.currentId===id){
-    const next=state.articles.find(a=>!a.deleted);
-    state.currentId=next?.id||null;
-  }
-  save(true);renderArtList();renderEditor();renderSources();
-}
 
-function restoreArticle(id,e){
-  e.stopPropagation();
-  const art=state.articles.find(a=>a.id===id);
-  if(art){art.deleted=false;art.deletedAt=null;}
-  save(true);renderArtList();
-}
-
-function permanentDelete(id,e){
-  e.stopPropagation();
-  if(!confirm('完全に削除します。元に戻せません。よろしいですか？'))return;
-  state.articles=state.articles.filter(a=>a.id!==id);
-  save(true);renderArtList();
-}
-function startRename(id,e){
-  e.stopPropagation();
-  const art=state.articles.find(a=>a.id===id);if(!art)return;
-  const titleEl=document.getElementById('at_'+id);if(!titleEl)return;
-  titleEl.contentEditable='true';titleEl.focus();
-  const range=document.createRange();range.selectNodeContents(titleEl);
-  const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);
-  titleEl.onblur=()=>{
-    art.title=titleEl.innerText.trim()||art.title;
-    titleEl.contentEditable='false';
-    save(true);renderArtList();
-  };
-  titleEl.onkeydown=e2=>{if(e2.key==='Enter'){e2.preventDefault();titleEl.blur();}};
-}
-
-const STATUS_LIST=['writing','review','done','hold'];
-const STATUS_LABELS={'writing':'作業中','review':'確認中','done':'済み','hold':'保留'};
-const STATUS_COLORS={'writing':'--blue','review':'--abg-color','done':'--green','hold':'--tx3'};
-function statusLabel(s){return STATUS_LABELS[s]||'作業中';}
-function cycleStatus(id,e){
-  e.stopPropagation();
-  const art=state.articles.find(a=>a.id===id);if(!art)return;
-  const idx=STATUS_LIST.indexOf(art.status||'writing');
-  art.status=STATUS_LIST[(idx+1)%STATUS_LIST.length];
-  save(true);renderArtList();
-}
-
-function renderArtList(){
-  const el=document.getElementById('artList');
-  const list=showingTrash
-    ? state.articles.filter(a=>a.deleted)
-    : state.articles.filter(a=>!a.deleted);
-
-  if(!list.length){
-    el.innerHTML=`<div style="padding:12px;font-size:11px;color:var(--tx3);text-align:center">${showingTrash?'ゴミ箱は空です':'案件がありません'}</div>`;
-    return;
-  }
-
-  if(showingTrash){
-    el.innerHTML=list.map(a=>`
-      <div class="art-item" style="opacity:0.75">
-        <div class="art-item-title">${esc(a.title)}</div>
-        <div class="art-item-meta">${a.deletedAt||''}</div>
-        <div style="display:flex;gap:4px;margin-top:5px">
-          <button class="new-art-btn" style="flex:1;justify-content:center" onclick="restoreArticle('${a.id}',event)"><i class="ti ti-restore"></i>復元</button>
-          <button class="new-art-btn" style="flex:1;justify-content:center;color:#E24B4A;border-color:#F7C1C1" onclick="permanentDelete('${a.id}',event)"><i class="ti ti-trash-x"></i>完全削除</button>
-        </div>
-      </div>`).join('');
-    return;
-  }
-
-  el.innerHTML=list.map(a=>`
-    <div class="art-item${a.id===state.currentId?' active':''}" onclick="selectArticle('${a.id}')">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
-        <div class="art-item-title" id="at_${a.id}" ondblclick="startRename('${a.id}',event)">${esc(a.title)}</div>
-        <button class="art-item-del" onclick="deleteArticle('${a.id}',event)" title="ゴミ箱へ"><i class="ti ti-trash"></i></button>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:3px">
-        <div class="art-item-meta">${a.createdAt} · 引用${a.sources.length}件</div>
-        <span class="status-badge status-${a.status||'writing'}" onclick="cycleStatus('${a.id}',event)">${statusLabel(a.status||'writing')}</span>
-      </div>
-    </div>`).join('');
-}
-
-function renderEditor(){
-  const art=getCurrentArticle();
-  document.getElementById('editor').value=art?art.text:'';
-  updateFooter();
-  setTimeout(()=>{
-    applyColumnLayout();
-  },30);
-}
-let currentColWidth=48;
-
-function updateColWidth(val){
-  currentColWidth=parseInt(val);
-  document.getElementById('colWidthLabel').textContent=val+'字';
-  applyColumnLayout();
-  updateFooter();
-}
-
-function setReadOnlyMode(on){
-  const shell = document.querySelector('.shell');
-  const editorPane = document.querySelector('.editor-pane');
-  const topbar = document.querySelector('.topbar');
-  const wrap = document.getElementById('editorWrap');
-  const label = document.getElementById('readonlyLabel');
-
-  if(on){
-    shell.style.borderTop = '3px solid var(--blue)';
-    topbar.style.borderBottom = '3px solid var(--blue)';
-    topbar.style.background = 'var(--bbg)';
-    if(label) label.style.display = 'flex';
-  } else {
-    shell.style.borderTop = '';
-    topbar.style.borderBottom = '0.5px solid var(--bd)';
-    topbar.style.background = 'var(--bg)';
-    if(label) label.style.display = 'none';
-  }
-}
-
-function applyColumnLayout(){
-  const ta = document.getElementById('editor');
-  const colEd = document.getElementById('colEditor');
-  const wrap = document.getElementById('editorWrap');
-  if(!ta||!colEd||!wrap) return;
-
-  if(currentColWidth > 24){
-    // Single column: use textarea
-    ta.style.display = '';
-    ta.style.position = '';
-    ta.style.opacity = '';
-    ta.style.width = '100%';
-    ta.style.height = '100%';
-    ta.style.minHeight = '400px';
-    colEd.style.display = 'none';
-    setReadOnlyMode(false);
-    return;
-  }
-
-  // Measure column width in px
-  const sp = document.createElement('span');
-  sp.style.cssText = 'position:absolute;visibility:hidden;font-family:Georgia,serif;font-size:15px;white-space:pre';
-  sp.textContent = 'あ'.repeat(currentColWidth);
-  document.body.appendChild(sp);
-  const colPx = sp.offsetWidth;
-  document.body.removeChild(sp);
-
-  const wrapW = wrap.clientWidth - 64;
-  const numCols = Math.max(1, Math.floor((wrapW + 32) / (colPx + 32)));
-
-  if(numCols <= 1){
-    ta.style.display = '';
-    ta.style.position = '';
-    ta.style.opacity = '';
-    colEd.style.display = 'none';
-    setReadOnlyMode(false);
-    return;
-  }
-
-  // Hide textarea, show column editor (read-only view)
-  ta.style.display = 'none';
-  colEd.style.display = 'flex';
-  renderColEditor(colPx, numCols);
-  setReadOnlyMode(true);
-}
-
-function renderColEditor(colPx, numCols){
-  const ta = document.getElementById('editor');
-  const colEd = document.getElementById('colEditor');
-  const text = ta.value;
-
-  // Split ONLY on real paragraph breaks (\n), never insert extra \n
-  const realLines = text.split('\n');
-  // Distribute real lines into columns top-to-bottom
-  const linesPerCol = Math.ceil(realLines.length / numCols) || 1;
-
-  colEd.innerHTML = '';
-  for(let c = 0; c < numCols; c++){
-    const colLines = realLines.slice(c * linesPerCol, (c+1) * linesPerCol);
-    const colText = colLines.join('\n');
-    const rows = colLines.length + 2;
-
-    const colDiv = document.createElement('div');
-    colDiv.style.cssText = `width:${colPx}px;flex-shrink:0;`;
-
-    const colTa = document.createElement('textarea');
-    colTa.style.cssText = [
-      'border:none','outline:none','resize:none','background:transparent',
-      'font-family:Georgia,serif','font-size:15px','line-height:2',
-      `color:var(--tx)`,'caret-color:var(--green)','padding:0',
-      `width:${colPx}px`,'overflow:hidden',
-      // KEY: wrap within column width without inserting \n
-      'white-space:pre-wrap','word-break:break-all',
-      `min-height:${rows * 30}px`
-    ].join(';');
-
-    colTa.value = colText;
-    colTa.dataset.col = String(c);
-    colTa.dataset.startLine = String(c * linesPerCol);
-
-    colTa.readOnly = true;
-    colTa.style.cursor = 'default';
-    colTa.addEventListener('input', onColInput);
-    colTa.addEventListener('click', e => {
-      e.stopPropagation();
-      setTimeout(()=>{
-        const p = getParaAtCursorCol(colTa);
-        if(p !== activePara){ activePara = p; updateFooter(); renderSources(); }
-      }, 0);
-    });
-    colTa.addEventListener('keyup', e => {
-      setTimeout(()=>{
-        const p = getParaAtCursorCol(colTa);
-        if(p !== activePara){ activePara = p; updateFooter(); renderSources(); }
-      }, 0);
-    });
-    colTa.addEventListener('keydown', onColKeydown);
-    colDiv.appendChild(colTa);
-    colEd.appendChild(colDiv);
-  }
-}
-
-function getParaAtCursorCol(colTa){
-  // Find which real line (paragraph) the cursor is on within this column
-  const pos = colTa.selectionStart;
-  const textBefore = colTa.value.substring(0, pos);
-  // Count real \n in text before cursor = line index within this col
-  const lineInCol = textBefore.split('\n').length - 1;
-  // Add start line offset for this column
-  const startLine = parseInt(colTa.dataset.startLine || '0');
-  const absLineIdx = startLine + lineInCol;
-  // Map to paragraph number (non-empty lines)
-  const ta = document.getElementById('editor');
-  const allLines = ta.value.split('\n');
-  let paraCount = 0;
-  for(let i = 0; i <= absLineIdx && i < allLines.length; i++){
-    if(allLines[i].trim()) paraCount++;
-  }
-  return paraCount || null;
-}
-
-function onColInput(e){
-  syncColsToMain();
-  updateFooter();
-  const art = getCurrentArticle();
-  if(art) art.text = document.getElementById('editor').value;
-  try{localStorage.setItem(SK, JSON.stringify(state));}catch(err){}
-  // Update para highlight
-  const p = getParaAtCursorCol(e.target);
-  if(p !== activePara){ activePara = p; renderSources(); }
-}
-
-function onColKeydown(e){
-  setTimeout(() => {
-    syncColsToMain();
-    updateFooter();
-    const art = getCurrentArticle();
-    if(art){ art.text = document.getElementById('editor').value; }
-    try{localStorage.setItem(SK, JSON.stringify(state));}catch(err){}
-  }, 0);
-}
-
-function syncColsToMain(){
-  const colEd = document.getElementById('colEditor');
-  const ta = document.getElementById('editor');
-  const colTas = colEd.querySelectorAll('textarea');
-  const parts = [];
-  colTas.forEach(ct => parts.push(ct.value));
-  // Join with \n — this preserves original paragraph breaks
-  ta.value = parts.join('\n');
-}
-
-function colEditorClick(e){
-  // Focus first textarea if clicking empty space
-  const first = document.querySelector('#colEditor textarea');
-  if(first) first.focus();
-}
-
-
-function escHtml(s){
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-
-function updateFooter(){
-  const art=getCurrentArticle();if(!art)return;
-  const text=art.text||'';
-  const paras=getParas(text);
-  // Count lines based on current column width
-  let totalLines=0;
-  text.split('\n').forEach(line=>{
-    if(line.length===0){totalLines+=1;return;}
-    totalLines+=Math.ceil(line.length/currentColWidth)||1;
-  });
-  document.getElementById('charCount').textContent=text.length.toLocaleString()+' 文字';
-  document.getElementById('lineCount').textContent=totalLines+' 行';
-  document.getElementById('paraCount').textContent=paras.length+' 段落';
-  if(activePara){
-    const p=paras.find(x=>x.num===activePara);
-    document.getElementById('activeParaInfo').textContent=p?`▌段落${activePara}: 「${p.text.slice(0,20)}${p.text.length>20?'…':''}」`:'';
-  } else {
-    document.getElementById('activeParaInfo').textContent='';
-  }
-}
-function getParaAtCursor(){
-  if(currentColWidth <= 24){
-    const focused = document.activeElement;
-    if(focused && focused.closest && focused.closest('#colEditor')){
-      return getParaAtCursorCol(focused);
-    }
-    return activePara;
-  }
-  const ta=document.getElementById('editor');
-  const pos=ta.selectionStart;
-  const lines=ta.value.substring(0,pos).split('\n');
-  const lineIdx=lines.length-1;
-  const paras=getParas(ta.value);
-  for(let i=paras.length-1;i>=0;i--){if(paras[i].lineIdx<=lineIdx)return paras[i].num;}
-  return null;
-}
-const editor=document.getElementById('editor');
-editor.addEventListener('input',autoSave);
-editor.addEventListener('click',()=>{const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}});
-editor.addEventListener('keyup',e=>{
-  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Home','End','Enter'].includes(e.key)){
-    const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}
-  }
-});
-
-// ── source pane ──
-function renderSources(){
-  const art=getCurrentArticle();
-  const body=document.getElementById('sourceBody');
-  const headTitle=document.getElementById('sourceHeadTitle');
-
-  if(!art){body.innerHTML='<div class="source-empty">案件を選択してください</div>';return;}
-
-  const linkedCount=art.sources.filter(s=>s.paraNum===activePara).length;
-  headTitle.textContent=activePara
-    ?`段落${activePara}の引用元 ${linkedCount>0?'('+linkedCount+'件)':''} / 全${art.sources.length}件`
-    :`引用元一覧 (${art.sources.length}件)`;
-
-  const pending=window._pendingClips&&window._pendingClips.length;
-  let html='';
-  if(pending){
-    html+=`<div class="pending-banner"><p><i class="ti ti-clipboard-check"></i> <strong>${window._pendingClips.length}件</strong> 届いています</p><button onclick="importPending()">取り込む</button></div>`;
-  }
-  if(!art.sources.length&&!pending){
-    html+='<div class="source-empty"><i class="ti ti-link-off" style="font-size:24px;display:block;margin-bottom:8px"></i>引用元がまだありません<br><span style="font-size:11px">上の「追加」から登録できます</span></div>';
-    body.innerHTML=html;return;
-  }
-
-  // Sort: highlighted (linked to activePara) first
-  const sorted=[...art.sources].sort((a,b)=>{
-    const ah=activePara&&a.paraNum===activePara?0:1;
-    const bh=activePara&&b.paraNum===activePara?0:1;
-    return ah-bh;
-  });
-
-  html+=sorted.map(s=>{
-    // Interview card fields
-    const isInterview=s.sourceKind==='interview';
-    const interviewMeta=isInterview?[
-      s.who?`<span style="font-size:11px;font-weight:500;color:var(--tx)">${esc(s.who)}</span>`:'',
-      s.interviewDate?`<span style="font-size:10px;color:var(--tx3)">${esc(s.interviewDate)}</span>`:'',
-      s.place?`<span style="font-size:10px;color:var(--tx3)">${esc(s.place)}</span>`:'',
-      s.fileName?`<span style="font-size:10px;color:var(--tx3)"><i class="ti ti-file" style="font-size:10px"></i>${esc(s.fileName)}</span>`:''
-    ].filter(Boolean).join(' · '):'';
-    const isHighlighted=activePara&&s.paraNum===activePara;
-    const badge=s.paraNum
-      ?`<span class="sc-para-badge linked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link" style="font-size:9px"></i>段落${s.paraNum}</span>`
-      :`<span class="sc-para-badge unlinked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link-off" style="font-size:9px"></i>紐付け</span>`;
-    return `<div class="sc${isHighlighted?' highlighted':''}" id="sc_${s.id}">
-      <div class="sc-top">
-        <div style="flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:3px">
-          <span class="stag ${tagClass(s.type)}">${esc(s.type)}</span>${badge}
-          ${isInterview&&interviewMeta?`<span class="sc-note" style="display:block;margin-top:3px">${interviewMeta}</span>`:s.note?`<span class="sc-note">${esc(s.note)}</span>`:''}
-        </div>
-        <button class="sbtn del" onclick="deleteSource(event,'${s.id}')"><i class="ti ti-trash" style="font-size:11px"></i></button>
-      </div>
-      ${s.quote?`<div class="sc-quote">${esc(s.quote.length>140?s.quote.slice(0,140)+'…':s.quote)}</div>`:''}
-      ${s.translation?`<div class="sc-trans">和訳: ${esc(s.translation)}</div>`:''}
-      ${!isInterview&&s.url?`<div class="sc-url"><a href="${esc(s.url)}" target="_blank">${esc(s.url)}</a></div>`:''}
-      <div class="sc-actions">
-        <button class="sbtn" onclick="copyQuote('${s.id}')"><i class="ti ti-copy" style="font-size:11px"></i>原文コピー</button>
-        <button class="sbtn" onclick="openAddSourceModal('${s.id}')"><i class="ti ti-edit" style="font-size:11px"></i>編集</button>
-        
-      </div>
-      <div id="vr_${s.id}"></div>
-    </div>`;
-  }).join('');
-  body.innerHTML=html;
-
-  if(activePara){
-    const first=body.querySelector('.sc.highlighted');
-    if(first)setTimeout(()=>first.scrollIntoView({behavior:'smooth',block:'nearest'}),50);
-  }
-}
-
-// ── para picker ──
-function openParaPicker(e,sourceId){
-  e.stopPropagation();
-  const art=getCurrentArticle();if(!art)return;
-  pickerSourceId=sourceId;
-  const paras=getParas(art.text);
-  const s=art.sources.find(x=>x.id===sourceId);
-  const picker=document.getElementById('paraPicker');
-  let html=`<div class="para-picker-head">段落を選んで紐付け</div>`;
-  if(!paras.length){html+='<div style="padding:10px 12px;font-size:12px;color:var(--tx3)">原稿に段落がありません</div>';}
-  else{html+=paras.map(p=>`
-    <div class="para-picker-item${s&&s.paraNum===p.num?' active':''}" onclick="linkToPara(${p.num})">
-      <div class="pnum">段落 ${p.num}</div>
-      <div>${esc(p.text.slice(0,50))}${p.text.length>50?'…':''}</div>
-    </div>`).join('');}
-  if(s&&s.paraNum)html+=`<div class="para-picker-unlink" onclick="linkToPara(null)"><i class="ti ti-link-off" style="font-size:12px"></i>紐付けを解除</div>`;
-  picker.innerHTML=html;
-  picker.style.display='block';
-  const rect=e.target.getBoundingClientRect();
-  let top=rect.bottom+6,left=rect.left;
-  if(left+260>window.innerWidth)left=window.innerWidth-268;
-  if(top+300>window.innerHeight)top=rect.top-306;
-  picker.style.top=top+'px';picker.style.left=left+'px';
-}
-function linkToPara(num){
-  const art=getCurrentArticle();if(!art||!pickerSourceId)return;
-  const s=art.sources.find(x=>x.id===pickerSourceId);
-  if(s)s.paraNum=num||null;
-  save(true);closePicker();renderSources();
-}
-function closePicker(){document.getElementById('paraPicker').style.display='none';pickerSourceId=null;}
-document.addEventListener('click',e=>{
-  const p=document.getElementById('paraPicker');
-  if(p.style.display!=='none'&&!p.contains(e.target))closePicker();
-});
-
-// ── add/edit source ──
-let editingSourceId=null;
-function openAddSourceModal(sourceId){
-  editingSourceId=sourceId;
-  const art=getCurrentArticle();
-  if(sourceId){
-    const s=art.sources.find(x=>x.id===sourceId);if(!s)return;
-    document.getElementById('addSourceTitle').textContent='引用元を編集';
-    document.getElementById('nUrl').value=s.url||'';
-    document.getElementById('nType').value=s.type||'その他';
-    document.getElementById('nQuote').value=s.quote||'';
-    document.getElementById('nTrans').value=s.translation||'';
-    document.getElementById('nNote').value=s.note||'';
-  } else {
-    document.getElementById('addSourceTitle').textContent='引用元を追加';
-    ['nUrl','nQuote','nTrans','nNote'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('nType').value='その他';
-  }
-  document.getElementById('addSourceModal').classList.remove('hidden');
-}
-function addSource(){
-  const art=getCurrentArticle();if(!art)return;
-  const existingParaNum=editingSourceId?art.sources.find(s=>s.id===editingSourceId)?.paraNum||null:activePara||null;
-  let src;
-
-  if(currentSrcTab==='interview'){
-    const who=document.getElementById('iWho').value.trim();
-    const quote=document.getElementById('iQuote').value.trim();
-    if(!who&&!quote){alert('発言者か発言内容を入力してください');return;}
-    src={
-      id:editingSourceId||uid(),
-      sourceKind:'interview',
-      url:'',
-      who,
-      interviewDate:document.getElementById('iDate').value.trim(),
-      place:document.getElementById('iPlace').value.trim(),
-      fileName:document.getElementById('iFile').value.trim(),
-      quote,
-      translation:'',
-      type:'独自取材',
-      note:document.getElementById('iNote').value.trim(),
-      paraNum:existingParaNum
-    };
-  } else {
-    const url=document.getElementById('nUrl').value.trim();
-    const quote=document.getElementById('nQuote').value.trim();
-    if(!url&&!quote){alert('URLか引用テキストを入力してください');return;}
-    src={
-      id:editingSourceId||uid(),
-      sourceKind:'web',
-      url,quote,
-      translation:document.getElementById('nTrans').value.trim(),
-      type:document.getElementById('nType').value,
-      note:document.getElementById('nNote').value.trim(),
-      paraNum:existingParaNum
-    };
-  }
-  if(editingSourceId){const idx=art.sources.findIndex(s=>s.id===editingSourceId);if(idx>=0)art.sources[idx]=src;}
-  else art.sources.push(src);
-  save(true);renderSources();renderArtList();closeModal('addSourceModal');
-}
-function deleteSource(e,id){
-  e.stopPropagation();
-  const art=getCurrentArticle();if(!art)return;
-  if(!confirm('削除しますか？'))return;
-  art.sources=art.sources.filter(s=>s.id!==id);
-  save(true);renderSources();renderArtList();
-}
-function copyQuote(id){
-  const art=getCurrentArticle();if(!art)return;
-  const s=art.sources.find(x=>x.id===id);if(!s)return;
-  navigator.clipboard.writeText(s.quote||s.url).catch(()=>{});
-  const btns=document.querySelectorAll(`#sc_${id} .sbtn`);
-  if(btns[0]){const o=btns[0].innerHTML;btns[0].innerHTML='<i class="ti ti-check" style="font-size:11px"></i>コピー完了';setTimeout(()=>btns[0].innerHTML=o,1500);}
-}
-
-// ── copy for Claude verification ──
-function copyAllForVerify(){
-  const art = getCurrentArticle(); if(!art) return;
-  const paras = getParas(art.text);
-  const srcs = art.sources.filter(s => s.quote);
-  if(!srcs.length){ alert('引用テキストが登録された引用元がありません'); return; }
-  
-  let text = '【AI翻訳検証依頼】\n\n';
-  text += '■ 案件: ' + art.title + '\n\n';
-  srcs.forEach((s, i) => {
-    const linkedPara = s.paraNum ? paras.find(p => p.num === s.paraNum) : null;
-    text += `引用元 ${i+1} (${s.type})\n`;
-    if(s.note) text += `備考: ${s.note}\n`;
-    text += `原文: ${s.quote}\n`;
-    if(s.translation) text += `和訳: ${s.translation}\n`;
-    if(linkedPara) text += `原稿段落: ${linkedPara.text}\n`;
-    text += `URL: ${s.url}\n\n`;
-  });
-  text += '上記の引用元について、①原文と和訳の整合性、②原稿段落の記述と引用元の内容の整合性を検証してください。';
-  
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = document.querySelector('.tbtn[onclick="copyAllForVerify()"]');
-    if(btn){ const o=btn.innerHTML; btn.innerHTML='<i class="ti ti-check"></i> コピー完了！Claudeに貼り付けて'; setTimeout(()=>btn.innerHTML=o, 3000); }
-  }).catch(() => alert('クリップボードへのコピーに失敗しました'));
-}
-
-// ── pending clips ──
-function checkPending(){
-  try{const raw=localStorage.getItem('reporter_pending_clips');if(!raw)return;window._pendingClips=JSON.parse(raw);localStorage.removeItem('reporter_pending_clips');renderSources();}catch(e){}
-}
-function importPending(){
-  const art=getCurrentArticle();if(!art)return;
-  (window._pendingClips||[]).forEach(c=>{
-    art.sources.push({id:uid(),url:c.url||'',quote:c.quote||'',translation:'',type:c.sourceType||'その他',note:c.title||'',paraNum:activePara||null});
-  });
-  window._pendingClips=null;save(true);renderSources();renderArtList();
-}
-window.addEventListener('storage',e=>{
-  if(e.key==='reporter_pending_clips'&&e.newValue){
-    try{window._pendingClips=JSON.parse(e.newValue);localStorage.removeItem('reporter_pending_clips');renderSources();}catch(err){}
-  }
-});
-
-function closeModal(id){document.getElementById(id).classList.add('hidden');}
-document.querySelectorAll('.modal-bg').forEach(bg=>{bg.addEventListener('click',function(e){if(e.target===this)this.classList.add('hidden');});});
-document.addEventListener('keydown',e=>{
-  if((e.metaKey||e.ctrlKey)&&e.key==='s'){e.preventDefault();saveArticle();}
-  if(e.key==='Escape')closePicker();
-});
-
-load();
-</script>
-</body>
-</html>
