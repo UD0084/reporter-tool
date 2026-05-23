@@ -179,8 +179,8 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
         </div>
       </div>
       <div id="artFilterBar" style="display:flex;flex-wrap:wrap;gap:3px;padding:5px 8px;border-bottom:0.5px solid var(--bd);flex-shrink:0">
-        <button class="art-filter-btn active" id="af-active" onclick="setArtFilter('active')">作業中</button>
-        <button class="art-filter-btn" id="af-all" onclick="setArtFilter('all')">全て</button>
+        <button class="art-filter-btn" id="af-active" onclick="setArtFilter('active')">作業中</button>
+        <button class="art-filter-btn active" id="af-all" onclick="setArtFilter('all')">全て</button>
         <button class="art-filter-btn" id="af-writing" onclick="setArtFilter('writing')"><span class="status-badge status-writing" style="cursor:inherit">作業中</span></button>
         <button class="art-filter-btn" id="af-review" onclick="setArtFilter('review')"><span class="status-badge status-review" style="cursor:inherit">確認中</span></button>
         <button class="art-filter-btn" id="af-done" onclick="setArtFilter('done')"><span class="status-badge status-done" style="cursor:inherit">済み</span></button>
@@ -197,8 +197,8 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
       </div>
       <div class="editor-footer">
         <i class="ti ti-columns" style="font-size:13px;color:var(--tx3)"></i>
-        <input type="range" id="colSlider" min="8" max="48" value="48" step="1" style="width:100px" oninput="updateColWidth(this.value)">
-        <span id="colWidthLabel" style="font-size:11px;color:var(--tx2);min-width:32px">48字</span>
+        <input type="range" id="colSlider" min="20" max="40" value="40" step="1" style="width:100px" oninput="updateColWidth(this.value)">
+        <span id="colWidthLabel" style="font-size:11px;color:var(--tx2);min-width:32px">40字</span>
         <div style="flex:1"></div>
         <span id="charCount" style="font-size:15px;font-weight:600">0 文字</span>
         <span id="lineCount" style="font-size:15px;font-weight:600">0 行</span>
@@ -297,8 +297,8 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
 <script>
 const SK='reporter_v4'; // Keep v4 to preserve existing data
 let state={articles:[],stocks:[],currentId:null};
-let activePara=null,currentColWidth=48,pickerSourceId=null;
-let showingTrash=false,stockPaneVisible=false,stockTab='all',stockTagFilter=null,artFilter='active';
+let activePara=null,currentColWidth=40,pickerSourceId=null;
+let showingTrash=false,stockPaneVisible=false,stockTab='all',stockTagFilter=null,artFilter='all';
 
 // ── persistence ──
 function load(){
@@ -505,14 +505,50 @@ editor.addEventListener('keyup',e=>{
 
 // ── column layout ──
 function updateColWidth(val){
-  currentColWidth=parseInt(val);
-  document.getElementById('colWidthLabel').textContent=val+'字';
-  applyColumnLayout();updateFooter();
+  currentColWidth = parseInt(val);
+  document.getElementById('colWidthLabel').textContent = val + '字';
+  applyColumnLayout();
+  updateFooter();
 }
+
+function applyColumnLayout(){
+  const ta = document.getElementById('editor');
+  const colEd = document.getElementById('colEditor');
+  const wrap = document.getElementById('editorWrap');
+  if(!ta || !wrap) return;
+
+  // Always use single-column textarea (no multi-col in edit mode)
+  if(colEd) colEd.style.display = 'none';
+  ta.style.display = '';
+  ta.style.position = '';
+  ta.style.opacity = '';
+  ta.style.height = '100%';
+  ta.style.minHeight = '400px';
+  setReadOnlyMode(false);
+
+  if(currentColWidth >= 40){
+    // Full width
+    ta.style.width = '100%';
+    ta.style.maxWidth = '';
+  } else {
+    // Constrain width to simulate column width
+    // Measure character width
+    const sp = document.createElement('span');
+    sp.style.cssText = 'position:absolute;visibility:hidden;font-family:Georgia,serif;font-size:15px;white-space:pre';
+    sp.textContent = 'あ'.repeat(currentColWidth);
+    document.body.appendChild(sp);
+    const colPx = sp.offsetWidth + 64; // add padding
+    document.body.removeChild(sp);
+    ta.style.width = Math.min(colPx, wrap.clientWidth) + 'px';
+    ta.style.maxWidth = '100%';
+  }
+}
+
+
 function setReadOnlyMode(on){
   const topbar=document.getElementById('topbar'),label=document.getElementById('readonlyLabel');
-  if(on){topbar.style.background='var(--bbg)';topbar.style.borderBottom='3px solid var(--blue)';if(label)label.style.display='flex';}
-  else{topbar.style.background='var(--bg)';topbar.style.borderBottom='0.5px solid var(--bd)';if(label)label.style.display='none';}
+  topbar.style.background='var(--bg)';topbar.style.borderBottom='0.5px solid var(--bd)';
+  if(label)label.style.display='none';
 }
 function applyColumnLayout(){
   const ta=document.getElementById('editor'),colEd=document.getElementById('colEditor'),wrap=document.getElementById('editorWrap');
