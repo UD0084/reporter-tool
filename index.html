@@ -59,6 +59,10 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 .art-item-del{position:absolute;top:6px;right:6px;background:transparent;border:none;cursor:pointer;color:var(--tx3);padding:1px;display:none;font-size:12px}
 .art-item:hover .art-item-del{display:block}
 .art-item-del:hover{color:#E24B4A}
+.art-move-btn{background:transparent;border:none;cursor:pointer;color:var(--tx3);padding:1px 2px;display:flex;align-items:center;border-radius:3px}
+.art-move-btn:hover{background:var(--bd);color:var(--tx)}
+.art-item.drag-over{border-color:var(--green);border-style:dashed;background:var(--gbg)}
+.art-item[draggable]{cursor:default}
 .status-badge{font-size:9px;padding:1px 6px;border-radius:99px;cursor:pointer;font-weight:600;flex-shrink:0;white-space:nowrap}
 .status-writing{background:var(--bbg);color:var(--btx)}
 .status-review{background:var(--abg);color:var(--atx)}
@@ -442,6 +446,53 @@ function setArtFilter(f){
   renderArtList();
 }
 
+let dragSrcId = null;
+
+function artDragStart(e, id){
+  dragSrcId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.style.opacity = '0.5';
+}
+function artDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drag-over');
+}
+function artDrop(e, targetId){
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if(!dragSrcId || dragSrcId === targetId) return;
+  const activeList = state.articles.filter(a=>!a.deleted);
+  const allList = state.articles;
+  const srcIdx = allList.findIndex(a=>a.id===dragSrcId);
+  const tgtIdx = allList.findIndex(a=>a.id===targetId);
+  if(srcIdx<0||tgtIdx<0) return;
+  const [moved] = allList.splice(srcIdx,1);
+  allList.splice(tgtIdx,0,moved);
+  save(true); renderArtList();
+}
+function artDragEnd(e){
+  e.currentTarget.style.opacity = '';
+  document.querySelectorAll('.art-item').forEach(el=>el.classList.remove('drag-over'));
+  dragSrcId = null;
+}
+
+function moveArt(id, dir, e){
+  e.stopPropagation();
+  const list = state.articles.filter(a=>!a.deleted);
+  const allList = state.articles;
+  const visIdx = list.findIndex(a=>a.id===id);
+  if(visIdx<0) return;
+  const newVisIdx = visIdx + dir;
+  if(newVisIdx<0||newVisIdx>=list.length) return;
+  const targetId = list[newVisIdx].id;
+  const srcIdx = allList.findIndex(a=>a.id===id);
+  const tgtIdx = allList.findIndex(a=>a.id===targetId);
+  const [moved] = allList.splice(srcIdx,1);
+  allList.splice(tgtIdx,0,moved);
+  save(true); renderArtList();
+}
+
 function renderArtList(){
   const el=document.getElementById('artList');
   let list=showingTrash
@@ -464,10 +515,20 @@ function renderArtList(){
       </div></div>`).join('');
     return;
   }
-  el.innerHTML=list.map(a=>`<div class="art-item${a.id===state.currentId?' active':''}" onclick="selectArticle('${a.id}')">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
-      <div class="art-item-title" id="at_${a.id}" ondblclick="startRename('${a.id}',event)">${esc(a.title)}</div>
-      <button class="art-item-del" onclick="deleteArticle('${a.id}',event)"><i class="ti ti-trash" style="font-size:11px"></i></button>
+  el.innerHTML=list.map((a,i)=>`<div class="art-item${a.id===state.currentId?' active':''}" id="ai_${a.id}" draggable="true"
+    ondragstart="artDragStart(event,'${a.id}')"
+    ondragover="artDragOver(event)"
+    ondrop="artDrop(event,'${a.id}')"
+    ondragend="artDragEnd(event)"
+    onclick="selectArticle('${a.id}')">
+    <div style="display:flex;align-items:center;gap:3px">
+      <i class="ti ti-grip-vertical" style="font-size:12px;color:var(--tx3);cursor:grab;flex-shrink:0"></i>
+      <div class="art-item-title" id="at_${a.id}" ondblclick="startRename('${a.id}',event)" style="flex:1">${esc(a.title)}</div>
+      <div style="display:flex;gap:1px;flex-shrink:0">
+        <button class="art-move-btn" onclick="moveArt('${a.id}',-1,event)" title="上へ"><i class="ti ti-chevron-up" style="font-size:10px"></i></button>
+        <button class="art-move-btn" onclick="moveArt('${a.id}',1,event)" title="下へ"><i class="ti ti-chevron-down" style="font-size:10px"></i></button>
+        <button class="art-item-del" onclick="deleteArticle('${a.id}',event)"><i class="ti ti-trash" style="font-size:11px"></i></button>
+      </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:3px">
       <div class="art-item-meta">${a.createdAt} · 引用${(a.sources||[]).length}件</div>
@@ -584,7 +645,7 @@ function renderSources(){
   renderSrcTagFilters();
   let sourcesToShow=[...art.sources];
   if(srcTagFilter) sourcesToShow=sourcesToShow.filter(s=>(s.tags||[]).includes(srcTagFilter));
-  const sorted=sourcesToShow.sort((a,b)=>{const ah=activePara&&a.paraNum===activePara?0:1,bh=activePara&&b.paraNum===activePara?0:1;return ah-bh;});
+  const sorted=sourcesToShow.sort((a,b)=>{const ap=a.paraNum||999,bp=b.paraNum||999;return ap-bp;});
   html+=sorted.map(s=>{
     const isH=activePara&&s.paraNum===activePara;
     const badge=s.paraNum?`<span class="sc-para-badge linked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link" style="font-size:9px"></i>段落${s.paraNum}</span>`:`<span class="sc-para-badge unlinked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link-off" style="font-size:9px"></i>紐付け</span>`;
