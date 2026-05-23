@@ -181,6 +181,7 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
     <div class="editor-pane">
       <div class="editor-wrap" id="editorWrap">
         <textarea class="editor-textarea" id="editor" placeholder="原稿をここに入力..."></textarea>
+        <div id="paraHighlight"></div>
         <div id="colEditor" style="display:none;width:100%;height:100%;position:absolute;top:0;left:0;overflow:auto;padding:36px 32px;gap:32px;align-items:flex-start"></div>
       </div>
       <div class="editor-footer">
@@ -440,8 +441,8 @@ function getParaAtCursorCol(colTa){
   return paraCount||null;
 }
 const editor=document.getElementById('editor');
-editor.addEventListener('input',autoSave);
-editor.addEventListener('click',()=>{const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}});
+editor.addEventListener('input',()=>{autoSave();document.getElementById('paraHighlight').style.display='none';});
+editor.addEventListener('click',()=>{const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}document.getElementById('paraHighlight').style.display='none';});
 editor.addEventListener('keyup',e=>{
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Home','End','Enter'].includes(e.key)){
     const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}
@@ -502,7 +503,7 @@ function renderSources(){
     const badge=s.paraNum?`<span class="sc-para-badge linked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link" style="font-size:9px"></i>段落${s.paraNum}</span>`:`<span class="sc-para-badge unlinked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link-off" style="font-size:9px"></i>紐付け</span>`;
     const isInt=s.sourceKind==='interview';
     const intMeta=isInt?[s.who?`<strong>${esc(s.who)}</strong>`:'',s.interviewDate?esc(s.interviewDate):'',s.place?esc(s.place):''].filter(Boolean).join(' · '):'';
-    return `<div class="sc${isH?' highlighted':''}" id="sc_${s.id}">
+    return `<div class="sc${isH?' highlighted':''}" id="sc_${s.id}" onclick="onSourceCardClick('${s.id}')" style="cursor:pointer">
       <div class="sc-top"><div style="flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:3px"><span class="stag ${tagClass(s.type)}">${esc(s.type)}</span>${badge}${s.note&&!isInt?`<span class="sc-note">${esc(s.note)}</span>`:''}</div>
       <button class="sbtn del" onclick="deleteSource(event,'${s.id}')"><i class="ti ti-trash" style="font-size:11px"></i></button></div>
       ${isInt&&intMeta?`<div style="font-size:11px;color:var(--tx);margin-bottom:4px">${intMeta}</div>`:''}
@@ -600,6 +601,62 @@ function copyQuote(id){
   navigator.clipboard.writeText(s.quote||s.url).catch(()=>{});
   const btn=document.querySelector(`#sc_${id} .sbtn`);
   if(btn){const o=btn.innerHTML;btn.innerHTML='<i class="ti ti-check" style="font-size:11px"></i>コピー完了';setTimeout(()=>btn.innerHTML=o,1500);}
+}
+
+function highlightParaInEditor(paraNum){
+  const hl=document.getElementById('paraHighlight');
+  const ta=document.getElementById('editor');
+  const wrap=document.getElementById('editorWrap');
+  if(!hl||!ta||!wrap||!paraNum){if(hl)hl.style.display='none';return;}
+
+  const text=ta.value;
+  const lines=text.split('\n');
+  const paras=getParas(text);
+  const para=paras.find(p=>p.num===paraNum);
+  if(!para){hl.style.display='none';return;}
+
+  // Calculate pixel position of the paragraph line in the textarea
+  // Create a mirror div to measure text height
+  const style=window.getComputedStyle(ta);
+  const mirror=document.createElement('div');
+  mirror.style.cssText=[
+    'position:absolute','visibility:hidden','white-space:pre-wrap','word-break:break-word',
+    `font-family:${style.fontFamily}`,`font-size:${style.fontSize}`,`line-height:${style.lineHeight}`,
+    `width:${ta.clientWidth}px`,`padding:${style.padding}`,
+    'border:'+style.border,'box-sizing:border-box','overflow-wrap:break-word'
+  ].join(';');
+  document.body.appendChild(mirror);
+
+  // Measure height up to the paragraph line
+  const beforeText=lines.slice(0,para.lineIdx).join('\n')+(para.lineIdx>0?'\n':'');
+  mirror.textContent=beforeText||' ';
+  const topPx=beforeText?mirror.scrollHeight:0;
+
+  // Measure height of just this line
+  mirror.textContent=beforeText+para.text;
+  const bottomPx=mirror.scrollHeight;
+  document.body.removeChild(mirror);
+
+  const editorPadding=36; // matches padding:36px 32px
+  hl.style.display='block';
+  hl.style.top=(editorPadding+topPx-ta.scrollTop)+'px';
+  hl.style.height=(bottomPx-topPx+4)+'px';
+  hl.style.left='28px';
+  hl.style.right='28px';
+
+  // Scroll editor to show the paragraph
+  ta.scrollTop=Math.max(0,editorPadding+topPx-wrap.clientHeight/3);
+}
+
+function onSourceCardClick(id){
+  const art=getCurrentArticle();if(!art)return;
+  const s=art.sources.find(x=>x.id===id);if(!s)return;
+  if(s.paraNum){
+    activePara=s.paraNum;
+    updateFooter();
+    renderSources();
+    highlightParaInEditor(s.paraNum);
+  }
 }
 function moveSourceToStock(id){
   const art=getCurrentArticle();if(!art)return;
