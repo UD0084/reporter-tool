@@ -66,7 +66,11 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 .status-hold{background:var(--bg3);color:var(--tx3);border:0.5px solid var(--bd2)}
 .art-filter-btn{font-size:10px;padding:2px 7px;border-radius:99px;border:0.5px solid var(--bd2);background:transparent;cursor:pointer;color:var(--tx2);font-family:var(--font);display:flex;align-items:center}
 .art-filter-btn:hover{background:var(--bg);color:var(--tx)}
-.art-filter-btn.active{background:var(--tx);color:var(--bg);border-color:var(--tx)}
+.art-filter-btn.active{background:var(--green);color:#fff;border-color:var(--green)}
+.art-filter-btn#af-writing.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.art-filter-btn#af-review.active{background:#E07B00;color:#fff;border-color:#E07B00}
+.art-filter-btn#af-done.active{background:var(--green);color:#fff;border-color:var(--green)}
+.art-filter-btn#af-hold.active{background:#888;color:#fff;border-color:#888}
 /* editor */
 .editor-pane{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 .editor-wrap{flex:1;overflow:auto;padding:36px 32px;position:relative}
@@ -180,11 +184,10 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
       </div>
       <div id="artFilterBar" style="display:flex;flex-wrap:wrap;gap:3px;padding:5px 8px;border-bottom:0.5px solid var(--bd);flex-shrink:0">
         <div class="art-filter-btn active" id="af-all" onclick="setArtFilter('all')">全て</div>
-        <div class="art-filter-btn" id="af-active" onclick="setArtFilter('active')">進行中</div>
-        <div class="art-filter-btn" id="af-writing" onclick="setArtFilter('writing')" style="color:var(--btx)">作業中</div>
-        <div class="art-filter-btn" id="af-review" onclick="setArtFilter('review')" style="color:var(--atx)">確認中</div>
-        <div class="art-filter-btn" id="af-done" onclick="setArtFilter('done')" style="color:var(--gtx)">済み</div>
-        <div class="art-filter-btn" id="af-hold" onclick="setArtFilter('hold')" style="color:var(--tx3)">保留</div>
+        <div class="art-filter-btn" id="af-writing" onclick="setArtFilter('writing')">作業中</div>
+        <div class="art-filter-btn" id="af-review" onclick="setArtFilter('review')">確認中</div>
+        <div class="art-filter-btn" id="af-done" onclick="setArtFilter('done')">済み</div>
+        <div class="art-filter-btn" id="af-hold" onclick="setArtFilter('hold')">保留</div>
       </div>
       <div style="flex:1;overflow-y:auto;min-height:0"><div class="art-list" id="artList"></div></div>
     </div>
@@ -197,7 +200,7 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
       </div>
       <div class="editor-footer">
         <i class="ti ti-columns" style="font-size:13px;color:var(--tx3)"></i>
-        <input type="range" id="colSlider" min="20" max="40" value="40" step="2" style="width:120px" oninput="updateColWidth(parseInt(this.value))">
+        <input type="range" id="colSlider" min="11" max="40" value="40" step="1" style="width:120px" oninput="updateColWidth(parseInt(this.value))">
         <span id="colWidthLabel" style="font-size:11px;color:var(--tx2);min-width:32px">40字</span>
         <div style="flex:1"></div>
         <span id="charCount" style="font-size:15px;font-weight:600">0 文字</span>
@@ -666,48 +669,47 @@ function copyQuote(id){
 }
 
 function highlightParaInEditor(paraNum){
-  const hl = document.getElementById('paraHighlight');
   const ta = document.getElementById('editor');
-  const wrap = document.getElementById('editorWrap');
-  if(!hl || !ta || !wrap || !paraNum){ if(hl) hl.style.display='none'; return; }
+  const hl = document.getElementById('paraHighlight');
+  if(!ta || !paraNum){ if(hl) hl.style.display='none'; return; }
 
   const text = ta.value;
   const paras = getParas(text);
   const para = paras.find(p => p.num === paraNum);
-  if(!para){ hl.style.display='none'; return; }
+  if(!para){ if(hl) hl.style.display='none'; return; }
 
-  // Measure line height from computed style
-  const cs = window.getComputedStyle(ta);
-  const lineH = parseFloat(cs.lineHeight) || 30;
-  const padTop = 36; // editor-wrap padding
-
-  // Count visual lines before this paragraph (each newline = 1 line)
+  // Select the paragraph text in the textarea to make it visible
   const allLines = text.split('\n');
-  let linesBefore = 0;
-  for(let i = 0; i < para.lineIdx; i++) linesBefore++;
+  let charPos = 0;
+  for(let i = 0; i < para.lineIdx; i++){
+    charPos += allLines[i].length + 1;
+  }
+  const paraStart = charPos;
+  const paraEnd = charPos + para.text.length;
 
-  // Height of the paragraph itself (may wrap - estimate by char count / chars per line)
-  const taWidth = ta.clientWidth;
-  const charWidth = parseFloat(cs.fontSize) * 0.88; // approx for Georgia
-  const charsPerLine = Math.max(1, Math.floor(taWidth / charWidth));
-  const paraLines = Math.max(1, Math.ceil(para.text.length / charsPerLine));
+  // Focus and select
+  ta.focus();
+  ta.setSelectionRange(paraStart, paraEnd);
 
-  const topPx = padTop + linesBefore * lineH - ta.scrollTop;
-  const heightPx = paraLines * lineH + 4;
+  // Also show the green overlay box using scrollTop
+  if(hl){
+    const cs = window.getComputedStyle(ta);
+    const lineH = parseFloat(cs.lineHeight) || 32;
+    const padTop = 36;
+    const topPx = padTop + para.lineIdx * lineH;
 
-  hl.style.display = 'block';
-  hl.style.top = topPx + 'px';
-  hl.style.height = heightPx + 'px';
-  hl.style.left = '28px';
-  hl.style.right = '28px';
+    // Scroll textarea so paragraph is in view
+    ta.scrollTop = Math.max(0, topPx - ta.clientHeight / 3);
 
-  // Scroll textarea so paragraph is visible (center it)
-  const targetScroll = padTop + linesBefore * lineH - wrap.clientHeight / 3;
-  ta.scrollTop = Math.max(0, targetScroll);
-  // Reposition hl after scroll settles
-  requestAnimationFrame(() => {
-    hl.style.top = (padTop + linesBefore * lineH - ta.scrollTop) + 'px';
-  });
+    setTimeout(() => {
+      const visTop = padTop + para.lineIdx * lineH - ta.scrollTop;
+      hl.style.display = 'block';
+      hl.style.top = visTop + 'px';
+      hl.style.height = (lineH * Math.max(1, Math.ceil(para.text.length / 30)) + 6) + 'px';
+      hl.style.left = '28px';
+      hl.style.right = '28px';
+    }, 30);
+  }
 }
 
 
