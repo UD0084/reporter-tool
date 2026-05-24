@@ -189,6 +189,8 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
     <div style="flex:1"></div>
     <button class="tbtn" onclick="openAddSourceModal(null)"><i class="ti ti-plus"></i> 引用元を追加</button>
     <button class="tbtn" id="stockBtn" onclick="toggleStockPane()"><i class="ti ti-bookmarks"></i> ストック<span id="stockCount" style="margin-left:4px;background:var(--bbg);color:var(--btx);font-size:10px;padding:1px 6px;border-radius:99px;font-weight:600;display:none"></span></button>
+    <button class="tbtn" onclick="exportData()" title="データをJSONファイルとして保存"><i class="ti ti-download"></i> バックアップ</button>
+    <label class="tbtn" title="JSONファイルからデータを復元" style="cursor:pointer"><i class="ti ti-upload"></i> 復元<input type="file" accept=".json" onchange="importData(event)" style="display:none"></label>
     <button class="tbtn" onclick="copyAllForVerify()"><i class="ti ti-clipboard-copy"></i> 検証用コピー</button>
   </div>
   <div class="workspace">
@@ -338,6 +340,42 @@ let activePara=null,currentColWidth=40,pickerSourceId=null;
 let showingTrash=false,stockPaneVisible=false,stockTab='all',stockTagFilter=null,artFilter='all';
 
 // ── persistence ──
+function exportData(){
+  const data = JSON.stringify(state, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'reporter_backup_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try{
+      const imported = JSON.parse(ev.target.result);
+      if(!imported.articles) throw new Error('無効なファイルです');
+      if(!confirm(`${imported.articles.length}件の案件を復元しますか？\n現在のデータは上書きされます。`)) return;
+      state = imported;
+      if(!state.stocks) state.stocks = [];
+      save(true);
+      renderArtList();
+      renderEditor();
+      renderSources();
+      updateStockCount();
+      alert('復元しました');
+    }catch(err){
+      alert('読み込みに失敗しました: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
 function load(){
   try{const d=localStorage.getItem(SK);if(d)state=JSON.parse(d);}catch(e){}
   // Also try older keys to recover data
