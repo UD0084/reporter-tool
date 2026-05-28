@@ -77,10 +77,13 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 .art-filter-btn#af-hold.active{background:#888;color:#fff;border-color:#888}
 /* editor */
 .editor-pane{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
-.editor-wrap{flex:1;overflow:auto;padding:24px 24px 24px 0;position:relative;display:flex}
+.editor-wrap{flex:1;overflow:hidden;position:relative;display:flex;flex-direction:row}
 
 
 
+.line-gutter{width:36px;flex-shrink:0;overflow:hidden;position:relative;background:var(--bg)}
+.line-num{position:absolute;right:6px;font-size:10px;font-weight:600;color:var(--green);font-family:var(--font);line-height:1}
+.editor-inner{flex:1;overflow:auto;padding:36px 32px}
 .headline-box{padding:14px 32px 0 32px;flex-shrink:0;border-bottom:0.5px solid var(--bd);background:var(--bg);width:100%}
 .headline-input{width:100%;font-size:20px;font-weight:700;font-family:Georgia,serif;border:none;outline:none;background:transparent;color:var(--tx);padding:0 0 12px 0;display:block;box-sizing:border-box}
 .headline-input::placeholder{color:var(--tx3);font-weight:400;font-size:16px}
@@ -214,8 +217,11 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
         <input type="text" id="headlineInput" class="headline-input" placeholder="見出しを入力...（案件名にもなります）" oninput="onHeadlineInput(this.value)">
       </div>
       <div class="editor-wrap" id="editorWrap">
-        <textarea class="editor-textarea" id="editor" placeholder="原稿をここに入力..."></textarea>
-        <div id="paraHighlight"></div>
+        <div class="line-gutter" id="lineGutter"></div>
+        <div class="editor-inner" id="editorInner">
+          <textarea class="editor-textarea" id="editor" placeholder="原稿をここに入力..."></textarea>
+          <div id="paraHighlight"></div>
+        </div>
         <div id="colEditor" style="display:none;width:100%;height:100%;position:absolute;top:0;left:0;overflow:auto;padding:36px 32px;gap:32px;align-items:flex-start"></div>
       </div>
       <div class="editor-footer">
@@ -591,7 +597,7 @@ function renderEditor(){
   const hl=document.getElementById('headlineInput');
   if(hl) hl.value=(art&&art.headline)||'';
   updateFooter();
-  updateLineGutter();
+  updateLineNumbers();
   setTimeout(()=>applyColumnLayout(),30);
 }
 
@@ -616,6 +622,30 @@ function updateLineGutter(){
   inner.innerHTML = html;
   inner.style.height = (padTop + totalLines * lineH) + 'px';
 }
+
+function updateLineNumbers(){
+  const ta = document.getElementById('editor');
+  const inner = document.getElementById('editorInner');
+  const gutter = document.getElementById('lineGutter');
+  if(!ta || !inner || !gutter) return;
+
+  const lineH = 30; // font-size 15px * line-height 2
+  const padTop = 36;
+  const scrollTop = inner.scrollTop;
+  const gutterH = inner.clientHeight;
+  const totalLines = ta.value === '' ? 0 : ta.value.split('\n').length;
+
+  // Build gutter HTML
+  const lines = [];
+  for(let i = 5; i <= Math.max(totalLines + 5, 50); i += 5){
+    const top = padTop + (i - 1) * lineH - scrollTop;
+    if(top < -lineH || top > gutterH + lineH) continue;
+    lines.push(`<div style="position:absolute;right:4px;top:${top}px;font-size:10px;font-weight:600;color:#1D9E75;font-family:-apple-system,sans-serif;line-height:1;user-select:none">${i}</div>`);
+  }
+  gutter.style.position = 'relative';
+  gutter.innerHTML = lines.join('');
+}
+
 
 function onHeadlineInput(val){
   const art = getCurrentArticle();
@@ -1185,6 +1215,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape')closePicker();
 });
 
+document.getElementById('editorInner')?.addEventListener('scroll', updateLineNumbers);
 load();
 </script>
 </body>
