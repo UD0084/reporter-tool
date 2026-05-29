@@ -632,11 +632,11 @@ function updateLineNumbers(){
   if(!gutter) return;
   const lineH = 30;
   let html = '';
-  for(let i = 5; i <= 200; i += 5){
+  for(let i = 5; i <= 300; i += 5){
     const top = (i - 1) * lineH;
     html += `<div style="position:absolute;right:6px;top:${top}px;font-size:10px;font-weight:600;color:#1D9E75;font-family:-apple-system,sans-serif;line-height:1;user-select:none">${i}</div>`;
   }
-  gutter.style.height = (200 * lineH) + 'px';
+  gutter.style.height = (300 * lineH) + 'px';
   gutter.innerHTML = html;
 }
 
