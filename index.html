@@ -1030,7 +1030,7 @@ function renderStockPane(){
       ${item.quote?`<div class="sc-quote" style="font-size:11px">${esc(item.quote.slice(0,120))}${item.quote.length>120?'…':''}</div>`:''}
       ${item.url?`<div class="sc-url"><a href="${esc(item.url)}" target="_blank">${esc(item.url)}</a></div>`:''}
       <div class="sc-actions">
-        ${isStock?`<button class="sbtn" onclick="openMoveToArticlePicker('${item.id}','stock','copy')"><i class="ti ti-copy" style="font-size:10px"></i>コピー</button><button class="sbtn" onclick="openMoveToArticlePicker('${item.id}','stock','move')"><i class="ti ti-transfer" style="font-size:10px"></i>移動</button><button class="sbtn" onclick="openEditStock('${item.id}')"><i class="ti ti-edit" style="font-size:10px"></i>編集</button>`:''}
+        ${isStock?`<button class="sbtn" onclick="openMoveToArticlePicker('${item.id}','stock','','copy')"><i class="ti ti-copy" style="font-size:10px"></i>コピー</button><button class="sbtn" onclick="openMoveToArticlePicker('${item.id}','stock','','move')"><i class="ti ti-transfer" style="font-size:10px"></i>移動</button><button class="sbtn" onclick="openEditStock('${item.id}')"><i class="ti ti-edit" style="font-size:10px"></i>編集</button>`:''}
         ${!isStock?`<button class="sbtn" onclick="openMoveToArticlePicker('${item.id}','source','${item._artId}')"><i class="ti ti-copy" style="font-size:10px"></i>他の案件にコピー</button><button class="sbtn" onclick="moveSourceToStockById('${item._artId}','${item.id}')"><i class="ti ti-bookmark" style="font-size:10px"></i>ストックへ</button>`:''}
       </div>
     </div>`;
