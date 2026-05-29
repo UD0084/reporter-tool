@@ -629,16 +629,18 @@ function updateLineNumbers(){
   const gutter = document.getElementById('lineGutter');
   if(!ta || !inner || !gutter) return;
 
-  const lineH = 30; // font-size 15px * line-height 2
+  const lineH = 30; // font-size:15px * line-height:2
   const padTop = 36;
   const scrollTop = inner.scrollTop;
   const gutterH = inner.clientHeight;
-  const totalLines = ta.value === '' ? 0 : ta.value.split('\n').length;
+  const totalLines = ta.value === '' ? 1 : ta.value.split('\n').length;
+  // Show numbers up to totalLines + buffer, minimum 50 lines
+  const maxLine = Math.max(totalLines + 10, 50);
 
-  // Build gutter HTML
   const lines = [];
-  for(let i = 5; i <= Math.max(totalLines + 5, 50); i += 5){
+  for(let i = 5; i <= maxLine; i += 5){
     const top = padTop + (i - 1) * lineH - scrollTop;
+    // Only render if visible in gutter
     if(top < -lineH || top > gutterH + lineH) continue;
     lines.push(`<div style="position:absolute;right:4px;top:${top}px;font-size:10px;font-weight:600;color:#1D9E75;font-family:-apple-system,sans-serif;line-height:1;user-select:none">${i}</div>`);
   }
@@ -1218,8 +1220,16 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape')closePicker();
 });
 
-document.getElementById('editorInner')?.addEventListener('scroll', updateLineNumbers);
 load();
+// Attach scroll listener after DOM ready
+(function attachScrollListener(){
+  const inner = document.getElementById('editorInner');
+  if(inner){
+    inner.addEventListener('scroll', updateLineNumbers);
+  } else {
+    setTimeout(attachScrollListener, 100);
+  }
+})();
 </script>
 </body>
 </html>
