@@ -81,9 +81,9 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 
 
 
-.line-gutter{width:36px;flex-shrink:0;overflow:hidden;position:relative;background:var(--bg)}
+.line-gutter{width:36px;}
 .line-num{position:absolute;right:6px;font-size:10px;font-weight:600;color:var(--green);font-family:var(--font);line-height:1}
-.editor-inner{flex:1;overflow:auto;padding:36px 32px}
+.editor-inner{flex:1;overflow:auto;padding:36px 32px 36px 44px;position:relative}
 .headline-box{padding:14px 32px 0 32px;flex-shrink:0;border-bottom:0.5px solid var(--bd);background:var(--bg);width:100%}
 .headline-input{width:100%;font-size:20px;font-weight:700;font-family:Georgia,serif;border:none;outline:none;background:transparent;color:var(--tx);padding:0 0 12px 0;display:block;box-sizing:border-box}
 .headline-input::placeholder{color:var(--tx3);font-weight:400;font-size:16px}
@@ -217,8 +217,8 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
         <input type="text" id="headlineInput" class="headline-input" placeholder="見出しを入力...（案件名にもなります）" oninput="onHeadlineInput(this.value)">
       </div>
       <div class="editor-wrap" id="editorWrap">
-        <div class="line-gutter" id="lineGutter"></div>
         <div class="editor-inner" id="editorInner">
+          <div class="line-gutter" id="lineGutter" style="position:absolute;left:0;top:0;width:36px;pointer-events:none"></div>
           <textarea class="editor-textarea" id="editor" placeholder="原稿をここに入力..."></textarea>
           <div id="paraHighlight"></div>
         </div>
@@ -624,28 +624,19 @@ function updateLineGutter(){
 }
 
 function updateLineNumbers(){
-  const ta = document.getElementById('editor');
-  const inner = document.getElementById('editorInner');
   const gutter = document.getElementById('lineGutter');
-  if(!ta || !inner || !gutter) return;
-
-  const lineH = 30; // font-size:15px * line-height:2
+  if(!gutter) return;
+  const lineH = 30;
   const padTop = 36;
-  const scrollTop = inner.scrollTop;
-  const gutterH = inner.clientHeight;
-  const totalLines = ta.value === '' ? 1 : ta.value.split('\n').length;
-  // Show numbers up to totalLines + buffer, minimum 50 lines
-  const maxLine = Math.max(totalLines + 10, 50);
-
-  const lines = [];
-  for(let i = 5; i <= maxLine; i += 5){
-    const top = padTop + (i - 1) * lineH - scrollTop;
-    // Only render if visible in gutter
-    if(top < -lineH || top > gutterH + lineH) continue;
-    lines.push(`<div style="position:absolute;right:4px;top:${top}px;font-size:10px;font-weight:600;color:#1D9E75;font-family:-apple-system,sans-serif;line-height:1;user-select:none">${i}</div>`);
+  let html = '';
+  for(let i = 5; i <= 200; i += 5){
+    const top = padTop + (i - 1) * lineH;
+    html += `<div style="position:absolute;right:4px;top:${top}px;font-size:10px;font-weight:600;color:#1D9E75;font-family:-apple-system,sans-serif;line-height:1;user-select:none">${i}</div>`;
   }
+  // Set gutter height to match 200 lines
   gutter.style.position = 'relative';
-  gutter.innerHTML = lines.join('');
+  gutter.style.height = (padTop + 200 * lineH) + 'px';
+  gutter.innerHTML = html;
 }
 
 
