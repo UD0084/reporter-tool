@@ -856,8 +856,8 @@ function onSearchInput(val){
   while((i = text.indexOf(val, i)) !== -1){ matches.push(i); i += val.length; }
   searchMatches = matches;
   searchIdx = 0;
-  document.getElementById('searchCount').textContent = matches.length ? `${searchIdx+1}/${matches.length}件` : '見つかりません';
-  if(matches.length) highlightSearchMatch(ta, val);
+  // Only update count, do NOT move cursor while typing
+  document.getElementById('searchCount').textContent = matches.length ? `${matches.length}件` : '見つかりません';
 }
 
 function highlightSearchMatch(ta, val){
@@ -865,25 +865,43 @@ function highlightSearchMatch(ta, val){
   const pos = searchMatches[searchIdx];
   ta.focus();
   ta.setSelectionRange(pos, pos + val.length);
+  // Scroll textarea to show match
+  const lineH = 30;
+  const lineNum = ta.value.substring(0, pos).split('\n').length - 1;
+  const inner = document.getElementById('editorInner');
+  if(inner) inner.scrollTop = Math.max(0, lineNum * lineH - inner.clientHeight / 3);
   document.getElementById('searchCount').textContent = `${searchIdx+1}/${searchMatches.length}件`;
+  // Return focus to search input
+  setTimeout(()=>document.getElementById('searchInput')?.focus(), 0);
 }
 
 function searchNext(){
-  if(!searchMatches.length) return;
+  if(!searchMatches.length){
+    const val = document.getElementById('searchInput').value;
+    onSearchInput(val);
+    if(!searchMatches.length) return;
+  }
   searchIdx = (searchIdx + 1) % searchMatches.length;
   const val = document.getElementById('searchInput').value;
   highlightSearchMatch(document.getElementById('editor'), val);
 }
 
 function searchPrev(){
-  if(!searchMatches.length) return;
+  if(!searchMatches.length){
+    const val = document.getElementById('searchInput').value;
+    onSearchInput(val);
+    if(!searchMatches.length) return;
+  }
   searchIdx = (searchIdx - 1 + searchMatches.length) % searchMatches.length;
   const val = document.getElementById('searchInput').value;
   highlightSearchMatch(document.getElementById('editor'), val);
 }
 
 function searchKeydown(e){
-  if(e.key === 'Enter'){ e.shiftKey ? searchPrev() : searchNext(); }
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    e.shiftKey ? searchPrev() : searchNext();
+  }
   if(e.key === 'Escape') closeSearch();
 }
 
