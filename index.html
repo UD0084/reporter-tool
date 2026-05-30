@@ -190,7 +190,6 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
     <button class="tbtn" id="stockBtn" onclick="toggleStockPane()"><i class="ti ti-bookmarks"></i> ストック<span id="stockCount" style="margin-left:4px;background:var(--bbg);color:var(--btx);font-size:10px;padding:1px 6px;border-radius:99px;font-weight:600;display:none"></span></button>
     <button class="tbtn" onclick="exportData()" title="データをJSONファイルとして保存"><i class="ti ti-download"></i> バックアップ</button>
     <label class="tbtn" title="JSONファイルからデータを復元" style="cursor:pointer"><i class="ti ti-upload"></i> 復元<input type="file" accept=".json" onchange="importData(event)" style="display:none"></label>
-    <button class="tbtn" onclick="openReviewPane()"><i class="ti ti-pencil-check"></i> 文章チェック</button>
     <button class="tbtn" onclick="copyAllForVerify()"><i class="ti ti-clipboard-copy"></i> 検証用コピー</button>
   </div>
   <div class="workspace">
@@ -259,23 +258,6 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
       </div>
       <div id="stockBody" style="flex:1;overflow-y:auto;padding:10px 12px"></div>
     </div>
-    <!-- review pane -->
-    <div id="reviewPane" style="display:none;width:360px;border-left:0.5px solid var(--bd);flex-direction:column;background:var(--bg2);flex-shrink:0;overflow:hidden">
-      <div style="padding:10px 14px 8px;border-bottom:0.5px solid var(--bd);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
-        <span style="font-size:12px;font-weight:500;color:var(--tx2)"><i class="ti ti-pencil-check"></i> 文章チェック</span>
-        <button class="sbtn" onclick="closeReviewPane()"><i class="ti ti-x" style="font-size:12px"></i></button>
-      </div>
-      <div style="padding:8px 12px;border-bottom:0.5px solid var(--bd);flex-shrink:0;display:flex;gap:6px">
-        <button class="tbtn primary" style="flex:1;justify-content:center;font-size:11px" onclick="runFullReview()"><i class="ti ti-robot"></i> 全体レビュー</button>
-        <button class="tbtn" style="flex:1;justify-content:center;font-size:11px" id="selectionCheckBtn" onclick="runSelectionCheck()" disabled><i class="ti ti-text-size"></i> 選択箇所をチェック</button>
-      </div>
-      <div id="reviewBody" style="flex:1;overflow-y:auto;padding:12px">
-        <div style="font-size:12px;color:var(--tx3);line-height:1.8;text-align:center;padding:32px 16px">
-          「全体レビュー」で原稿全体を分析<br>原稿のテキストを選択すると<br>その箇所だけチェックできます
-        </div>
-      </div>
-    </div>
-
     <!-- source pane -->
     <div class="source-pane">
       <div class="source-head">
@@ -403,6 +385,146 @@ function importData(e){
   e.target.value = '';
 }
 
+
+// ── articles ──
+const STATUS_LIST=['writing','review','done','hold'];
+const STATUS_LABELS={writing:'作業中',review:'確認中',done:'済み',hold:'保留'};
+
+
+let dragSrcId = null;
+
+
+
+
+// ── editor ──
+
+
+
+
+
+
+
+
+
+
+const editor=document.getElementById('editor');
+editor.addEventListener('input',()=>{autoSave();document.getElementById('paraHighlight').style.display='none';});
+editor.addEventListener('click',()=>{const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}document.getElementById('paraHighlight').style.display='none';});
+editor.addEventListener('keyup',e=>{
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Home','End','Enter'].includes(e.key)){
+    const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}
+  }
+});
+
+// ── column layout ──
+
+
+
+
+
+// ── source pane ──
+
+// ── para picker ──
+document.addEventListener('click',e=>{const p=document.getElementById('paraPicker');if(p.style.display!=='none'&&!p.contains(e.target))closePicker();});
+
+// ── add/edit source ──
+let editingSourceId=null,currentSrcTab='web',srcTagFilter=null;
+
+
+
+
+
+
+
+
+
+
+// ── stock pane ──
+
+// ── move to article picker ──
+
+// ── stock add/edit ──
+let editingStockId=null;
+
+// ── import pending clips ──
+
+window.addEventListener('storage',e=>{
+  if(e.key==='reporter_pending_clips'&&e.newValue){
+    try{window._pendingClips=JSON.parse(e.newValue);localStorage.removeItem('reporter_pending_clips');renderSources();}catch(err){}
+  }
+});
+
+// ── verify copy ──
+
+
+
+
+// ── articles ──
+
+
+
+
+
+
+// ── editor ──
+
+
+
+
+
+
+
+
+
+
+editor.addEventListener('input',()=>{autoSave();document.getElementById('paraHighlight').style.display='none';});
+editor.addEventListener('click',()=>{const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}document.getElementById('paraHighlight').style.display='none';});
+editor.addEventListener('keyup',e=>{
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Home','End','Enter'].includes(e.key)){
+    const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}
+  }
+});
+
+// ── column layout ──
+
+
+
+
+
+// ── source pane ──
+
+// ── para picker ──
+document.addEventListener('click',e=>{const p=document.getElementById('paraPicker');if(p.style.display!=='none'&&!p.contains(e.target))closePicker();});
+
+// ── add/edit source ──
+
+
+
+
+
+
+
+
+
+
+// ── stock pane ──
+
+// ── move to article picker ──
+
+// ── stock add/edit ──
+
+// ── import pending clips ──
+
+window.addEventListener('storage',e=>{
+  if(e.key==='reporter_pending_clips'&&e.newValue){
+    try{window._pendingClips=JSON.parse(e.newValue);localStorage.removeItem('reporter_pending_clips');renderSources();}catch(err){}
+  }
+});
+
+// ── verify copy ──
+
+
+
 function load(){
   try{const d=localStorage.getItem(SK);if(d)state=JSON.parse(d);}catch(e){}
   // Also try older keys to recover data
@@ -434,8 +556,6 @@ function getCurrentArticle(){return state.articles.find(a=>a.id===state.currentI
 function getParas(text){const r=[];(text||'').split('\n').forEach((l,i)=>{if(l.trim())r.push({num:r.length+1,text:l.trim(),lineIdx:i});});return r;}
 
 // ── articles ──
-const STATUS_LIST=['writing','review','done','hold'];
-const STATUS_LABELS={writing:'作業中',review:'確認中',done:'済み',hold:'保留'};
 function statusLabel(s){return STATUS_LABELS[s]||'作業中';}
 function cycleStatus(id,e){
   e.stopPropagation();
@@ -522,7 +642,6 @@ function setArtFilter(f){
   renderArtList();
 }
 
-let dragSrcId = null;
 
 function artDragStart(e, id){
   dragSrcId = id;
@@ -706,7 +825,6 @@ function getParaAtCursorCol(colTa){
   for(let i=0;i<=absLineIdx&&i<allLines.length;i++){if(allLines[i].trim())paraCount++;}
   return paraCount||null;
 }
-const editor=document.getElementById('editor');
 editor.addEventListener('input',()=>{autoSave();document.getElementById('paraHighlight').style.display='none';});
 editor.addEventListener('click',()=>{const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}document.getElementById('paraHighlight').style.display='none';});
 editor.addEventListener('keyup',e=>{
@@ -819,7 +937,6 @@ function closePicker(){document.getElementById('paraPicker').style.display='none
 document.addEventListener('click',e=>{const p=document.getElementById('paraPicker');if(p.style.display!=='none'&&!p.contains(e.target))closePicker();});
 
 // ── add/edit source ──
-let editingSourceId=null,currentSrcTab='web',srcTagFilter=null;
 
 function getAllSourceTags(){
   const art = getCurrentArticle();
@@ -1115,7 +1232,6 @@ function confirmMoveToArt(itemId,kind,fromArtId,toArtId,mode){
 }
 
 // ── stock add/edit ──
-let editingStockId=null;
 function openAddStockModal(prefill){
   editingStockId=null;
   document.getElementById('sUrl').value=prefill?.url||'';
@@ -1201,131 +1317,6 @@ window.addEventListener('storage',e=>{
 });
 
 // ── verify copy ──
-// ── review pane ──
-let reviewPaneOpen = false;
-
-function openReviewPane(){
-  reviewPaneOpen = true;
-  const pane = document.getElementById('reviewPane');
-  if(pane) pane.style.display = 'flex';
-}
-function closeReviewPane(){
-  reviewPaneOpen = false;
-  const pane = document.getElementById('reviewPane');
-  if(pane) pane.style.display = 'none';
-}
-
-// Track text selection in editor to enable selection check button
-document.addEventListener('mouseup', () => {
-  const ta = document.getElementById('editor');
-  if(!ta) return;
-  const selected = ta.value.substring(ta.selectionStart, ta.selectionEnd).trim();
-  const btn = document.getElementById('selectionCheckBtn');
-  if(btn) btn.disabled = !selected;
-});
-
-async function runFullReview(){
-  const art = getCurrentArticle();
-  if(!art || !art.text.trim()){ alert('原稿が空です'); return; }
-  const body = document.getElementById('reviewBody');
-  body.innerHTML = '<div style="padding:20px;text-align:center"><span class="spinner"></span><div style="margin-top:8px;font-size:12px;color:var(--tx3)">AIが原稿を分析中...</div></div>';
-  
-  const prompt = `あなたは経験豊富な新聞デスクです。以下の原稿を読んで、より良い新聞報道のスタイルにするためのアドバイスをしてください。
-
-重要：書き換え案を提示するのではなく、「なぜその表現が気になるか」「どういう観点から再考すると良いか」という示唆を与えてください。最終的な書き直しは記者本人が行います。
-
-原稿：
-${art.text}
-
-以下の観点でコメントしてください（JSONで返答）：
-{
-  "overall": "全体的な印象と評価（2-3文）",
-  "points": [
-    {"type": "文体", "issue": "気になる点", "reason": "なぜ気になるか", "hint": "どう考え直すと良いか"},
-    ...
-  ]
-}
-JSONのみ返答。backtick不要。`;
-
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:1500, messages:[{role:'user', content:prompt}]})
-    });
-    const data = await resp.json();
-    const text = (data.content||[]).map(i=>i.text||'').join('');
-    const r = JSON.parse(text.replace(/```json|```/g,'').trim());
-    
-    const typeColors = {'文体':'var(--bbg)','構成':'var(--gbg)','客観性':'var(--abg)','簡潔さ':'var(--pbg)'};
-    const typeText = {'文体':'var(--btx)','構成':'var(--gtx)','客観性':'var(--atx)','簡潔さ':'var(--ptx)'};
-    
-    body.innerHTML = `
-      <div style="background:var(--bg);border-radius:var(--r);padding:10px 12px;margin-bottom:12px;border:0.5px solid var(--bd)">
-        <div style="font-size:11px;font-weight:500;color:var(--tx2);margin-bottom:4px">総評</div>
-        <div style="font-size:13px;color:var(--tx);line-height:1.7">${esc(r.overall)}</div>
-      </div>
-      ${(r.points||[]).map(p => `
-        <div style="background:var(--bg);border-radius:var(--r);padding:10px 12px;margin-bottom:8px;border:0.5px solid var(--bd)">
-          <div style="margin-bottom:6px">
-            <span style="font-size:10px;padding:2px 7px;border-radius:99px;background:${typeColors[p.type]||'var(--bg2)'};color:${typeText[p.type]||'var(--tx2)'};">${esc(p.type)}</span>
-          </div>
-          <div style="font-size:12px;font-weight:500;color:var(--tx);margin-bottom:4px">⚠ ${esc(p.issue)}</div>
-          <div style="font-size:11px;color:var(--tx2);line-height:1.6;margin-bottom:5px">${esc(p.reason)}</div>
-          <div style="font-size:11px;color:var(--blue);line-height:1.6;border-left:2px solid var(--blue);padding-left:7px">💡 ${esc(p.hint)}</div>
-        </div>`).join('')}`;
-  } catch(e) {
-    body.innerHTML = '<div style="padding:16px;color:var(--atx);font-size:12px">エラーが発生しました</div>';
-  }
-}
-
-async function runSelectionCheck(){
-  const ta = document.getElementById('editor');
-  if(!ta) return;
-  const selected = ta.value.substring(ta.selectionStart, ta.selectionEnd).trim();
-  if(!selected){ alert('テキストを選択してください'); return; }
-  
-  const body = document.getElementById('reviewBody');
-  body.innerHTML = `
-    <div style="background:var(--bg2);border-radius:var(--r);padding:8px 12px;margin-bottom:12px;font-size:11px;font-style:italic;color:var(--tx2);border-left:2px solid var(--bd2)">"${esc(selected.length>60?selected.slice(0,60)+'…':selected)}"</div>
-    <div style="padding:20px;text-align:center"><span class="spinner"></span><div style="margin-top:8px;font-size:12px;color:var(--tx3)">分析中...</div></div>`;
-
-  const prompt = `あなたは経験豊富な新聞デスクです。以下の文章を新聞報道の観点からチェックしてください。
-
-重要：書き換え案を提示するのではなく、「なぜその表現が気になるか」「どういう観点から再考すると良いか」という示唆を与えてください。
-
-対象文：${selected}
-
-JSONで返答：
-{"assessment": "この文章の評価（1-2文）", "points": [{"issue": "気になる点", "reason": "理由", "hint": "再考のヒント"}]}
-JSONのみ。backtick不要。`;
-
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:800, messages:[{role:'user', content:prompt}]})
-    });
-    const data = await resp.json();
-    const text = (data.content||[]).map(i=>i.text||'').join('');
-    const r = JSON.parse(text.replace(/```json|```/g,'').trim());
-    
-    body.innerHTML = `
-      <div style="background:var(--bg2);border-radius:var(--r);padding:8px 12px;margin-bottom:12px;font-size:11px;font-style:italic;color:var(--tx2);border-left:2px solid var(--green)">"${esc(selected.length>60?selected.slice(0,60)+'…':selected)}"</div>
-      <div style="background:var(--bg);border-radius:var(--r);padding:10px 12px;margin-bottom:10px;border:0.5px solid var(--bd)">
-        <div style="font-size:11px;font-weight:500;color:var(--tx2);margin-bottom:4px">評価</div>
-        <div style="font-size:13px;color:var(--tx);line-height:1.7">${esc(r.assessment)}</div>
-      </div>
-      ${(r.points||[]).map(p=>`
-        <div style="background:var(--bg);border-radius:var(--r);padding:10px 12px;margin-bottom:8px;border:0.5px solid var(--bd)">
-          <div style="font-size:12px;font-weight:500;color:var(--tx);margin-bottom:4px">⚠ ${esc(p.issue)}</div>
-          <div style="font-size:11px;color:var(--tx2);line-height:1.6;margin-bottom:5px">${esc(p.reason)}</div>
-          <div style="font-size:11px;color:var(--blue);line-height:1.6;border-left:2px solid var(--blue);padding-left:7px">💡 ${esc(p.hint)}</div>
-        </div>`).join('')}`;
-  } catch(e) {
-    body.innerHTML = '<div style="padding:16px;color:var(--atx);font-size:12px">エラーが発生しました</div>';
-  }
-}
 
 function copyAllForVerify(){
   const art=getCurrentArticle();if(!art)return;
