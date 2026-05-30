@@ -174,6 +174,8 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
 .quote-popup-text{font-style:italic;color:var(--tx);border-left:2px solid var(--green);padding-left:8px;line-height:1.6}
 .quote-popup-url{font-size:10px;color:var(--tx3);margin-top:6px;word-break:break-all}
 .quote-popup-url a{color:var(--blue);text-decoration:none}
+.sc.src-dragging{opacity:0.4}
+.sc.src-drag-over{border-color:var(--green);border-style:dashed}
 .src-tag-chip{font-size:10px;padding:1px 7px;border-radius:99px;background:var(--pbg);color:var(--ptx);display:inline-flex;align-items:center;gap:3px}
 .src-tag-filter-btn{font-size:10px;padding:2px 8px;border-radius:99px;border:0.5px solid var(--bd2);background:transparent;cursor:pointer;color:var(--tx2);font-family:var(--font)}
 .src-tag-filter-btn:hover{background:var(--pbg);color:var(--ptx)}
@@ -187,6 +189,7 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
     <div class="topbar-sep"></div>
     <button class="tbtn primary" onclick="saveArticle()"><i class="ti ti-device-floppy"></i> 保存</button>
     <span class="save-status" id="saveStatus"></span>
+    <span id="lastSavedLabel" style="font-size:11px;color:var(--tx3)"></span>
     <div id="readonlyLabel" style="display:none;align-items:center;gap:6px;padding:4px 12px;background:var(--bbg);border-radius:var(--r);border:0.5px solid #B5D4F4;font-size:12px;font-weight:500;color:var(--btx)">
       <i class="ti ti-eye" style="font-size:13px"></i> 閲覧モード（編集は25字以上に）
     </div>
@@ -195,6 +198,7 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
     <button class="tbtn" id="stockBtn" onclick="toggleStockPane()"><i class="ti ti-bookmarks"></i> ストック<span id="stockCount" style="margin-left:4px;background:var(--bbg);color:var(--btx);font-size:10px;padding:1px 6px;border-radius:99px;font-weight:600;display:none"></span></button>
     <button class="tbtn" onclick="exportData()" title="データをJSONファイルとして保存"><i class="ti ti-download"></i> バックアップ</button>
     <label class="tbtn" title="JSONファイルからデータを復元" style="cursor:pointer"><i class="ti ti-upload"></i> 復元<input type="file" accept=".json" onchange="importData(event)" style="display:none"></label>
+    <button class="tbtn" onclick="printArticle()"><i class="ti ti-printer"></i> 印刷／PDF</button>
     <button class="tbtn" onclick="copyAllForVerify()"><i class="ti ti-clipboard-copy"></i> 検証用コピー</button>
   </div>
   <div class="workspace">
@@ -547,6 +551,8 @@ function load(){
 function save(silent){
   const art=getCurrentArticle();if(art)art.text=document.getElementById('editor').value;
   try{localStorage.setItem(SK,JSON.stringify(state));}catch(e){}
+  state._lastSaved = Date.now();
+  updateLastSavedLabel();
   if(!silent){const el=document.getElementById('saveStatus');el.textContent='保存済み ✓';setTimeout(()=>el.textContent='',2200);}
 }
 function autoSave(){
@@ -783,6 +789,16 @@ function updateLineNumbers(){
 }
 
 
+function updateLastSavedLabel(){
+  const el = document.getElementById('lastSavedLabel');
+  if(!el || !state._lastSaved) return;
+  const sec = Math.floor((Date.now() - state._lastSaved) / 1000);
+  if(sec < 60) el.textContent = '最終保存: ' + sec + '秒前';
+  else if(sec < 3600) el.textContent = '最終保存: ' + Math.floor(sec/60) + '分前';
+  else el.textContent = '最終保存: ' + Math.floor(sec/3600) + '時間前';
+}
+setInterval(updateLastSavedLabel, 10000);
+
 function onHeadlineInput(val){
   const art = getCurrentArticle();
   if(!art) return;
@@ -903,8 +919,8 @@ function renderSources(){
     const badge=s.paraNum?`<span class="sc-para-badge linked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link" style="font-size:9px"></i>段落${s.paraNum}</span>`:`<span class="sc-para-badge unlinked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link-off" style="font-size:9px"></i>紐付け</span>`;
     const isInt=s.sourceKind==='interview';
     const intMeta=isInt?[s.who?`<strong>${esc(s.who)}</strong>`:'',s.interviewDate?esc(s.interviewDate):'',s.place?esc(s.place):''].filter(Boolean).join(' · '):'';
-    return `<div class="sc${isH?' highlighted':''}" id="sc_${s.id}" onclick="onSourceCardClick('${s.id}')" style="cursor:pointer">
-      <div class="sc-top"><div style="flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:3px"><span class="stag ${tagClass(s.type)}">${esc(s.type)}</span>${badge}${s.note&&!isInt?`<span class="sc-note">${esc(s.note)}</span>`:''}</div>
+    return `<div class="sc${isH?' highlighted':''}" id="sc_${s.id}" onclick="onSourceCardClick('${s.id}')" style="cursor:pointer" draggable="true" ondragstart="srcDragStart(event,'${s.id}')" ondragover="srcDragOver(event)" ondrop="srcDrop(event,'${s.id}')" ondragend="srcDragEnd(event)">
+      <div class="sc-top"><i class="ti ti-grip-vertical" style="font-size:12px;color:var(--tx3);cursor:grab;flex-shrink:0;margin-right:4px"></i><div style="flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:3px"><span class="stag ${tagClass(s.type)}">${esc(s.type)}</span>${badge}${s.note&&!isInt?`<span class="sc-note">${esc(s.note)}</span>`:''}</div>
       <button class="sbtn del" onclick="deleteSource(event,'${s.id}')"><i class="ti ti-trash" style="font-size:11px"></i></button></div>
       ${isInt&&intMeta?`<div style="font-size:11px;color:var(--tx);margin-bottom:4px">${intMeta}</div>`:''}
       ${s.quote?`<div class="sc-quote">${esc(s.quote.length>140?s.quote.slice(0,140)+'…':s.quote)}</div>`:''}
@@ -1055,6 +1071,39 @@ function deleteSource(e,id){
   if(!confirm('削除しますか？'))return;
   art.sources=art.sources.filter(s=>s.id!==id);save(true);renderSources();renderArtList();
 }
+let srcDragId = null;
+function srcDragStart(e, id){
+  srcDragId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.classList.add('src-dragging');
+  e.stopPropagation();
+}
+function srcDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('src-drag-over');
+  e.stopPropagation();
+}
+function srcDrop(e, targetId){
+  e.preventDefault();
+  e.stopPropagation();
+  e.currentTarget.classList.remove('src-drag-over');
+  if(!srcDragId || srcDragId === targetId) return;
+  const art = getCurrentArticle(); if(!art) return;
+  const srcs = art.sources;
+  const fromIdx = srcs.findIndex(s => s.id === srcDragId);
+  const toIdx = srcs.findIndex(s => s.id === targetId);
+  if(fromIdx < 0 || toIdx < 0) return;
+  const [moved] = srcs.splice(fromIdx, 1);
+  srcs.splice(toIdx, 0, moved);
+  save(true); renderSources();
+}
+function srcDragEnd(e){
+  e.currentTarget.classList.remove('src-dragging');
+  document.querySelectorAll('.sc').forEach(el => el.classList.remove('src-drag-over'));
+  srcDragId = null;
+}
+
 function copyQuote(id){
   const art=getCurrentArticle();if(!art)return;const s=art.sources.find(x=>x.id===id);if(!s)return;
   navigator.clipboard.writeText(s.quote||s.url).catch(()=>{});
@@ -1214,7 +1263,7 @@ function renderStockPane(){
     const isStock=item._kind==='stock';
     const artLabel=item._artTitle?`<span style="font-size:9px;background:var(--gbg);color:var(--gtx);padding:1px 5px;border-radius:99px">${esc(item._artTitle)}</span>`:`<span style="font-size:9px;background:var(--bg2);color:var(--tx3);padding:1px 5px;border-radius:99px;border:0.5px dashed var(--bd2)">未使用</span>`;
     return `<div class="sc">
-      <div class="sc-top"><div style="flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:3px"><span class="stag ${tagClass(item.type||'その他')}">${esc(item.type||'その他')}</span>${artLabel}${(item.tags||[]).map(t=>`<span style="font-size:9px;background:var(--bbg);color:var(--btx);padding:1px 5px;border-radius:99px">${esc(t)}</span>`).join('')}</div>
+      <div class="sc-top"><i class="ti ti-grip-vertical" style="font-size:12px;color:var(--tx3);cursor:grab;flex-shrink:0;margin-right:4px"></i><div style="flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:3px"><span class="stag ${tagClass(item.type||'その他')}">${esc(item.type||'その他')}</span>${artLabel}${(item.tags||[]).map(t=>`<span style="font-size:9px;background:var(--bbg);color:var(--btx);padding:1px 5px;border-radius:99px">${esc(t)}</span>`).join('')}</div>
       <button class="sbtn del" onclick="${isStock?`deleteStock('${item.id}')`:`deleteSourceFromStock('${item._artId}','${item.id}')`}"><i class="ti ti-trash" style="font-size:10px"></i></button></div>
       ${item.note?`<div style="font-size:11px;color:var(--tx2);margin-bottom:3px">${esc(item.note)}</div>`:''}
       ${item.quote?`<div class="sc-quote" style="font-size:11px">${esc(item.quote.slice(0,120))}${item.quote.length>120?'…':''}</div>`:''}
@@ -1379,6 +1428,48 @@ window.addEventListener('storage',e=>{
 });
 
 // ── verify copy ──
+
+function printArticle(){
+  const art = getCurrentArticle();
+  if(!art){ alert('案件を選択してください'); return; }
+  const paras = getParas(art.text);
+  const win = window.open('', '_blank');
+  const srcHtml = art.sources.length ? `
+    <div class="sources">
+      <h3>引用元一覧</h3>
+      ${art.sources.map((s,i) => `
+        <div class="source-item">
+          <div class="source-meta">[${i+1}] ${s.type}${s.paraNum?' / 段落'+s.paraNum:''}${s.note?' / '+s.note:''}</div>
+          ${s.quote?`<div class="source-quote">${s.quote}</div>`:''}
+          ${s.translation?`<div class="source-trans">和訳: ${s.translation}</div>`:''}
+          ${s.url?`<div class="source-url">${s.url}</div>`:''}
+        </div>`).join('')}
+    </div>` : '';
+  win.document.write(`<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
+    <title>${art.headline||art.title}</title>
+    <style>
+      body{font-family:'Hiragino Mincho ProN','Yu Mincho',Georgia,serif;font-size:14px;line-height:2;color:#1a1a1a;max-width:800px;margin:0 auto;padding:32px}
+      h1{font-size:22px;font-weight:700;margin-bottom:8px;line-height:1.4}
+      .meta{font-size:12px;color:#666;margin-bottom:24px;padding-bottom:12px;border-bottom:1px solid #ddd}
+      .body{margin-bottom:32px}
+      .body p{margin-bottom:1em;text-indent:1em}
+      .sources{border-top:1px solid #ddd;padding-top:16px}
+      h3{font-size:14px;font-weight:600;margin-bottom:12px;color:#444}
+      .source-item{margin-bottom:12px;padding:8px 12px;border-left:3px solid #1D9E75;background:#f9f9f9}
+      .source-meta{font-size:11px;color:#666;margin-bottom:4px;font-family:sans-serif}
+      .source-quote{font-style:italic;font-size:13px;margin-bottom:3px}
+      .source-trans{font-size:12px;color:#444;margin-bottom:3px}
+      .source-url{font-size:11px;color:#185FA5}
+      @media print{body{padding:16px}button{display:none}}
+    </style></head><body>
+    <h1>${art.headline||art.title}</h1>
+    <div class="meta">${art.title} / ${art.createdAt} / ${art.text.length}字</div>
+    <div class="body">${art.text.split('\n').filter(l=>l.trim()).map(l=>`<p>${l}</p>`).join('')}</div>
+    ${srcHtml}
+    <script>window.onload=()=>window.print();<\/script>
+  </body></html>`);
+  win.document.close();
+}
 
 function copyAllForVerify(){
   const art=getCurrentArticle();if(!art)return;
