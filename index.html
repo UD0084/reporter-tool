@@ -1209,10 +1209,7 @@ function updateColWidth(val){
 function applyColumnLayout(){
   const ta = document.getElementById('editor');
   const colEd = document.getElementById('colEditor');
-  const inner = document.getElementById('editorInner');
-  const wrap = document.getElementById('editorWrap');
-  if(!ta || !wrap) return;
-
+  if(!ta) return;
   if(colEd) colEd.style.display = 'none';
   ta.style.display = '';
   ta.style.position = '';
@@ -1222,25 +1219,17 @@ function applyColumnLayout(){
   ta.style.width = '100%';
   ta.style.maxWidth = '';
   setReadOnlyMode(false);
-
-  if(currentColWidth >= 40){
-    // Full width - no constraint
-    if(inner) inner.style.maxWidth = '';
-    return;
+  // Width is now purely controlled by the editorInner padding
+  // Slider controls textarea's max-width within the flex container
+  if(currentColWidth < 40){
+    const sp = document.createElement('span');
+    sp.style.cssText = 'position:fixed;top:-9999px;font-family:Georgia,serif;font-size:15px;white-space:pre';
+    sp.textContent = 'あ'.repeat(currentColWidth);
+    document.body.appendChild(sp);
+    const colPx = sp.offsetWidth;
+    document.body.removeChild(sp);
+    ta.style.maxWidth = colPx + 'px';
   }
-
-  // Measure character width and constrain editorInner (not textarea)
-  // so lineGutter and textarea move together
-  const sp = document.createElement('span');
-  sp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;font-family:Georgia,serif;font-size:15px;white-space:pre';
-  sp.textContent = 'あ'.repeat(currentColWidth);
-  document.body.appendChild(sp);
-  const colPx = sp.offsetWidth;
-  document.body.removeChild(sp);
-
-  // Add gutter width (44px) + right padding (32px)
-  const targetW = colPx + 44 + 32;
-  if(inner) inner.style.maxWidth = targetW + 'px';
 }
 
 
