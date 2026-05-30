@@ -85,8 +85,6 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 
 
 .line-gutter{width:36px;}
-.para-label-dot{position:absolute;width:6px;height:6px;border-radius:50%;right:0px;transform:translateY(-50%)}
-.label-check{background:#E24B4A}.label-add{background:#E07B00}.label-ok{background:#1D9E75}
 .line-num{position:absolute;right:6px;font-size:10px;font-weight:600;color:var(--green);font-family:var(--font);line-height:1}
 .editor-inner{flex:1;overflow:auto;padding:0 32px 36px 0;position:relative}
 .headline-box{padding:14px 32px 0 32px;flex-shrink:0;border-bottom:0.5px solid var(--bd);background:var(--bg);width:100%}
@@ -865,22 +863,6 @@ function updateLineNumbers(){
     const top = padTop + (i - 1) * lineH;
     html += `<div style="position:absolute;right:6px;top:${top}px;font-size:10px;font-weight:600;color:#1D9E75;font-family:-apple-system,sans-serif;line-height:1;user-select:none">${i}</div>`;
   }
-  // Label dots - one per paragraph at its first line only
-  const art = getCurrentArticle();
-  if(art && art.paraLabels){
-    const paras = getParas(art.text);
-    const colorMap = {check:'#E24B4A', add:'#E07B00', ok:'#1D9E75'};
-    // Track which lineIdx values belong to paragraphs we've already dotted
-    const dottedLines = new Set();
-    paras.forEach(p => {
-      const lbl = art.paraLabels[p.num];
-      if(lbl && colorMap[lbl] && !dottedLines.has(p.lineIdx)){
-        dottedLines.add(p.lineIdx);
-        const top = padTop + p.lineIdx * lineH + lineH/2;
-        html += `<div style="position:absolute;left:4px;top:${top}px;width:8px;height:8px;border-radius:50%;background:${colorMap[lbl]};transform:translateY(-50%)"></div>`;
-      }
-    });
-  }
   gutter.style.height = '0';
   gutter.style.overflow = 'visible';
   gutter.innerHTML = html;
@@ -1558,68 +1540,10 @@ function copyQuote(id){
 }
 
 function highlightParaInEditor(paraNum){
-  const ta = document.getElementById('editor');
-  const hl = document.getElementById('paraHighlight');
-  if(!ta || !paraNum){ if(hl) hl.style.display='none'; return; }
-
-  const text = ta.value;
-  const paras = getParas(text);
-  const para = paras.find(p => p.num === paraNum);
-  if(!para){ if(hl) hl.style.display='none'; return; }
-
-  // Select the paragraph text in the textarea to make it visible
-  const allLines = text.split('\n');
-  let charPos = 0;
-  for(let i = 0; i < para.lineIdx; i++){
-    charPos += allLines[i].length + 1;
-  }
-  const paraStart = charPos;
-  const paraEnd = charPos + para.text.length;
-
-  // Focus and select
-  ta.focus();
-  ta.setSelectionRange(paraStart, paraEnd);
-
-  // Also show the green overlay box using scrollTop
-  if(hl){
-    const cs = window.getComputedStyle(ta);
-    const lineH = parseFloat(cs.lineHeight) || 32;
-    const padTop = 36;
-    const topPx = padTop + para.lineIdx * lineH;
-
-    // Scroll textarea so paragraph is in view
-    ta.scrollTop = Math.max(0, topPx - ta.clientHeight / 3);
-
-    setTimeout(() => {
-      const visTop = padTop + para.lineIdx * lineH - ta.scrollTop;
-      hl.style.display = 'block';
-      hl.style.top = visTop + 'px';
-      hl.style.height = (lineH * Math.max(1, Math.ceil(para.text.length / 30)) + 6) + 'px';
-      hl.style.left = '28px';
-      hl.style.right = '28px';
-    }, 30);
-  }
+  if(paraNum) highlightParasInEditor([paraNum]);
+  else{const hl=document.getElementById('paraHighlight');if(hl)hl.style.display='none';}
 }
 
-
-function onSourceCardClick(id){
-  const art = getCurrentArticle(); if(!art) return;
-  const s = art.sources.find(x => x.id === id); if(!s) return;
-
-  // Highlight paragraph in editor
-  const firstPara = (s.paraNums && s.paraNums.length) ? s.paraNums[0] : s.paraNum;
-  if(firstPara){
-    activePara = firstPara;
-    updateFooter();
-    renderSources();
-    highlightParaInEditor(s.paraNum);
-  }
-
-  // Show quote popup next to the highlighted paragraph
-  if(s.quote){
-    showQuotePopup(s, id);
-  }
-}
 
 function showQuotePopup(s, cardId){
   const popup = document.getElementById('quotePopup');
