@@ -914,7 +914,7 @@ function renderSources(){
       <div class="sc-actions">
         <button class="sbtn" onclick="copyQuote('${s.id}')"><i class="ti ti-copy" style="font-size:11px"></i>原文コピー</button>
         ${s.quote?`<a href="https://translate.google.com/?sl=auto&tl=ja&text=${encodeURIComponent(s.quote)}&op=translate" target="_blank" class="sbtn" style="text-decoration:none"><i class="ti ti-world" style="font-size:11px"></i>Google翻訳</a>`:''}
-        <button class="sbtn" onclick="openAddSourceModal('${s.id}')"><i class="ti ti-edit" style="font-size:11px"></i>編集</button>
+        <button class="sbtn" onclick="closeQuotePopup();openAddSourceModal('${s.id}')"><i class="ti ti-edit" style="font-size:11px"></i>編集</button>
         <button class="sbtn" onclick="moveSourceToStock('${s.id}')"><i class="ti ti-bookmark" style="font-size:11px"></i>ストックへ</button>
       </div>
       <div id="vr_${s.id}"></div>
