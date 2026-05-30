@@ -204,6 +204,7 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
     <button class="tbtn" id="stockBtn" onclick="toggleStockPane()"><i class="ti ti-bookmarks"></i> ストック<span id="stockCount" style="margin-left:4px;background:var(--bbg);color:var(--btx);font-size:10px;padding:1px 6px;border-radius:99px;font-weight:600;display:none"></span></button>
     <button class="tbtn" onclick="exportData()" title="データをJSONファイルとして保存"><i class="ti ti-download"></i> バックアップ</button>
     <label class="tbtn" title="JSONファイルからデータを復元" style="cursor:pointer"><i class="ti ti-upload"></i> 復元<input type="file" accept=".json" onchange="importData(event)" style="display:none"></label>
+    <button class="tbtn" id="historyBtn" onclick="toggleHistory()"><i class="ti ti-history"></i> 履歴</button>
     <button class="tbtn" id="searchToggleBtn" onclick="toggleSearch()"><i class="ti ti-search"></i> 検索</button>
     <button class="tbtn" id="memoToggleBtn" onclick="toggleMemo()"><i class="ti ti-note"></i> メモ</button>
     <button class="tbtn" onclick="printArticle()"><i class="ti ti-printer"></i> 印刷／PDF</button>
@@ -296,6 +297,16 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
       </div>
       <div id="stockBody" style="flex:1;overflow-y:auto;padding:10px 12px"></div>
     </div>
+    <!-- history pane -->
+    <div id="historyPane" style="display:none;width:300px;border-left:0.5px solid var(--bd);flex-direction:column;background:var(--bg2);flex-shrink:0;overflow:hidden">
+      <div style="padding:9px 14px 7px;border-bottom:0.5px solid var(--bd);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+        <span style="font-size:12px;font-weight:500;color:var(--tx2)"><i class="ti ti-history"></i> 変更履歴</span>
+        <button class="sbtn" onclick="toggleHistory()"><i class="ti ti-x" style="font-size:12px"></i></button>
+      </div>
+      <div style="padding:8px 12px;border-bottom:0.5px solid var(--bd);font-size:11px;color:var(--tx3);flex-shrink:0">保存のたびに自動記録。最大20件。</div>
+      <div id="historyBody" style="flex:1;overflow-y:auto;padding:8px 10px"></div>
+    </div>
+
     <!-- source pane -->
     <div class="source-pane">
       <div class="source-head">
@@ -579,9 +590,11 @@ function load(){
 }
 function save(silent){
   const art=getCurrentArticle();if(art)art.text=document.getElementById('editor').value;
+  if(!silent) saveSnapshot();
   try{localStorage.setItem(SK,JSON.stringify(state));}catch(e){}
   state._lastSaved = Date.now();
   updateLastSavedLabel();
+  if(historyOpen) renderHistory();
   if(!silent){const el=document.getElementById('saveStatus');el.textContent='保存済み ✓';setTimeout(()=>el.textContent='',2200);}
 }
 function autoSave(){
@@ -985,6 +998,76 @@ function loadMemo(){
   } else if(btn){
     btn.innerHTML = '<i class="ti ti-note"></i> メモ';
   }
+}
+
+// ── history ──
+let historyOpen = false;
+
+function toggleHistory(){
+  historyOpen = !historyOpen;
+  const pane = document.getElementById('historyPane');
+  const btn = document.getElementById('historyBtn');
+  if(pane) pane.style.display = historyOpen ? 'flex' : 'none';
+  if(btn) btn.classList.toggle('active', historyOpen);
+  if(historyOpen) renderHistory();
+}
+
+function saveSnapshot(){
+  const art = getCurrentArticle(); if(!art) return;
+  if(!art.history) art.history = [];
+  const last = art.history[art.history.length - 1];
+  // Don't save if text unchanged
+  if(last && last.text === art.text) return;
+  art.history.push({
+    text: art.text,
+    headline: art.headline || '',
+    savedAt: new Date().toLocaleString('ja'),
+    chars: art.text.length
+  });
+  // Keep max 20 snapshots
+  if(art.history.length > 20) art.history.shift();
+}
+
+function renderHistory(){
+  const art = getCurrentArticle();
+  const body = document.getElementById('historyBody');
+  if(!body) return;
+  if(!art || !art.history || !art.history.length){
+    body.innerHTML = '<div style="padding:20px;text-align:center;font-size:12px;color:var(--tx3)">まだ履歴がありません<br>保存すると記録されます</div>';
+    return;
+  }
+  const history = [...art.history].reverse();
+  body.innerHTML = history.map((h, i) => {
+    const isLatest = i === 0;
+    const isCurrent = h.text === art.text;
+    return `<div style="background:var(--bg);border:0.5px solid ${isCurrent?'var(--green)':'var(--bd)'};border-radius:var(--r);padding:9px 11px;margin-bottom:7px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <span style="font-size:10px;color:var(--tx3)">${h.savedAt}</span>
+        ${isCurrent?'<span style="font-size:9px;background:var(--gbg);color:var(--gtx);padding:1px 6px;border-radius:99px">現在</span>':''}
+      </div>
+      <div style="font-size:11px;color:var(--tx2);margin-bottom:6px">${h.chars}字 / ${h.headline?'「'+h.headline.slice(0,15)+(h.headline.length>15?'…':'')+'」':'見出しなし'}</div>
+      <div style="font-size:11px;color:var(--tx);line-height:1.5;max-height:48px;overflow:hidden;margin-bottom:7px">${esc(h.text.slice(0,80))}${h.text.length>80?'…':''}</div>
+      ${!isCurrent?`<button class="sbtn" onclick="restoreSnapshot(${art.history.length-1-i})" style="font-size:11px;width:100%;justify-content:center"><i class="ti ti-restore" style="font-size:11px"></i> このバージョンに戻す</button>`:''}
+    </div>`;
+  }).join('');
+}
+
+function restoreSnapshot(idx){
+  const art = getCurrentArticle(); if(!art) return;
+  const snap = art.history[idx]; if(!snap) return;
+  if(!confirm('このバージョンに戻しますか？\n現在の原稿は履歴に保存されます。')) return;
+  // Save current state first
+  saveSnapshot();
+  // Restore
+  art.text = snap.text;
+  art.headline = snap.headline || art.headline;
+  document.getElementById('editor').value = art.text;
+  const hl = document.getElementById('headlineInput');
+  if(hl) hl.value = art.headline || '';
+  updateFooter();
+  updateLineNumbers();
+  save(true);
+  renderHistory();
 }
 
 function updateLastSavedLabel(){
