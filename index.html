@@ -1128,11 +1128,19 @@ function showQuotePopup(s, cardId){
   if(!popup) return;
 
   // Build content
+  const hasTranslation = s.translation && s.translation.trim();
   popup.innerHTML = `
-    <div class="quote-popup-label"><i class="ti ti-quote" style="font-size:11px"></i> 引用元原文</div>
-    <div class="quote-popup-text">${esc(s.quote)}</div>
-    ${s.translation ? `<div style="font-size:11px;color:var(--tx2);margin-top:6px;padding-left:10px">和訳: ${esc(s.translation)}</div>` : ''}
-    ${s.url ? `<div class="quote-popup-url"><a href="${esc(s.url)}" target="_blank">${esc(s.url)}</a></div>` : ''}
+    <div style="display:flex;gap:0;align-items:flex-start">
+      <div style="flex:1;${hasTranslation?'border-right:0.5px solid var(--bd2);padding-right:12px;margin-right:12px':''}">
+        <div class="quote-popup-label"><i class="ti ti-quote" style="font-size:11px"></i> 原文</div>
+        <div class="quote-popup-text">${esc(s.quote)}</div>
+      </div>
+      ${hasTranslation ? `<div style="flex:1">
+        <div class="quote-popup-label" style="color:var(--blue)"><i class="ti ti-language" style="font-size:11px"></i> 和訳</div>
+        <div style="font-size:12px;color:var(--tx);line-height:1.7;border-left:2px solid var(--blue);padding-left:8px">${esc(s.translation)}</div>
+      </div>` : ''}
+    </div>
+    ${s.url ? `<div class="quote-popup-url" style="margin-top:8px;padding-top:8px;border-top:0.5px solid var(--bd)"><a href="${esc(s.url)}" target="_blank">${esc(s.url)}</a></div>` : ''}
     <div style="text-align:right;margin-top:6px"><button class="sbtn" onclick="closeQuotePopup()" style="font-size:10px">閉じる ✕</button></div>
   `;
 
@@ -1150,7 +1158,7 @@ function showQuotePopup(s, cardId){
     let left = innerRect.left + 40; // align with text
 
     // Keep within viewport
-    const popupW = 340;
+    const popupW = hasTranslation ? 620 : 340;
     const popupH = 200;
     if(left + popupW > window.innerWidth - 20) left = window.innerWidth - popupW - 20;
     if(top + popupH > window.innerHeight - 20) top = hlRect.top - popupH - 8;
