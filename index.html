@@ -41,6 +41,9 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 .tbtn.primary{background:var(--green);color:#fff;border-color:var(--green)}
 .tbtn.primary:hover{opacity:0.88}
 .tbtn.active{background:var(--bbg);color:var(--btx);border-color:#B5D4F4}
+.tbtn-wrap{display:flex;align-items:center;cursor:grab}
+.tbtn-wrap.tbtn-dragging{opacity:0.4}
+.tbtn-wrap.tbtn-drag-over{outline:2px dashed var(--green);border-radius:var(--r)}
 .save-status{font-size:11px;color:var(--green);min-width:56px;font-weight:500}
 .workspace{display:flex;flex:1;overflow:hidden}
 /* sidebar */
@@ -200,15 +203,17 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
       <i class="ti ti-eye" style="font-size:13px"></i> 閲覧モード（編集は25字以上に）
     </div>
     <div style="flex:1"></div>
-    <button class="tbtn" onclick="openAddSourceModal(null)"><i class="ti ti-plus"></i> 引用元を追加</button>
-    <button class="tbtn" id="stockBtn" onclick="toggleStockPane()"><i class="ti ti-bookmarks"></i> ストック<span id="stockCount" style="margin-left:4px;background:var(--bbg);color:var(--btx);font-size:10px;padding:1px 6px;border-radius:99px;font-weight:600;display:none"></span></button>
-    <button class="tbtn" onclick="exportData()" title="データをJSONファイルとして保存"><i class="ti ti-download"></i> バックアップ</button>
-    <label class="tbtn" title="JSONファイルからデータを復元" style="cursor:pointer"><i class="ti ti-upload"></i> 復元<input type="file" accept=".json" onchange="importData(event)" style="display:none"></label>
-    <button class="tbtn" id="historyBtn" onclick="toggleHistory()"><i class="ti ti-history"></i> 履歴</button>
-    <button class="tbtn" id="searchToggleBtn" onclick="toggleSearch()"><i class="ti ti-search"></i> 検索</button>
-    <button class="tbtn" id="memoToggleBtn" onclick="toggleMemo()"><i class="ti ti-note"></i> メモ</button>
-    <button class="tbtn" onclick="printArticle()"><i class="ti ti-printer"></i> 印刷／PDF</button>
-    <button class="tbtn" onclick="copyAllForVerify()"><i class="ti ti-clipboard-copy"></i> 検証用コピー</button>
+    <div id="topbarBtns" style="display:flex;gap:8px;align-items:center">
+      <div class="tbtn-wrap" data-id="source"><button class="tbtn" onclick="openAddSourceModal(null)"><i class="ti ti-plus"></i> 引用元を追加</button></div>
+      <div class="tbtn-wrap" data-id="stock"><button class="tbtn" id="stockBtn" onclick="toggleStockPane()"><i class="ti ti-bookmarks"></i> ストック<span id="stockCount" style="margin-left:4px;background:var(--bbg);color:var(--btx);font-size:10px;padding:1px 6px;border-radius:99px;font-weight:600;display:none"></span></button></div>
+      <div class="tbtn-wrap" data-id="backup"><button class="tbtn" onclick="exportData()"><i class="ti ti-download"></i> バックアップ</button></div>
+      <div class="tbtn-wrap" data-id="restore"><label class="tbtn" style="cursor:pointer"><i class="ti ti-upload"></i> 復元<input type="file" accept=".json" onchange="importData(event)" style="display:none"></label></div>
+      <div class="tbtn-wrap" data-id="history"><button class="tbtn" id="historyBtn" onclick="toggleHistory()"><i class="ti ti-history"></i> 履歴</button></div>
+      <div class="tbtn-wrap" data-id="search"><button class="tbtn" id="searchToggleBtn" onclick="toggleSearch()"><i class="ti ti-search"></i> 検索</button></div>
+      <div class="tbtn-wrap" data-id="memo"><button class="tbtn" id="memoToggleBtn" onclick="toggleMemo()"><i class="ti ti-note"></i> メモ</button></div>
+      <div class="tbtn-wrap" data-id="print"><button class="tbtn" onclick="printArticle()"><i class="ti ti-printer"></i> 印刷／PDF</button></div>
+      <div class="tbtn-wrap" data-id="verify"><button class="tbtn" onclick="copyAllForVerify()"><i class="ti ti-clipboard-copy"></i> 検証用コピー</button></div>
+    </div>
   </div>
   <div class="workspace">
     <!-- sidebar -->
@@ -998,6 +1003,55 @@ function loadMemo(){
   } else if(btn){
     btn.innerHTML = '<i class="ti ti-note"></i> メモ';
   }
+}
+
+// ── topbar drag reorder ──
+let topbarOrder = null;
+let tbDragId = null;
+
+function initTopbarDrag(){
+  const container = document.getElementById('topbarBtns');
+  if(!container) return;
+  // Load saved order
+  try{
+    const saved = localStorage.getItem('reporter_topbar_order');
+    if(saved){
+      const order = JSON.parse(saved);
+      order.forEach(id => {
+        const el = container.querySelector(`[data-id="${id}"]`);
+        if(el) container.appendChild(el);
+      });
+    }
+  }catch(e){}
+
+  container.querySelectorAll('.tbtn-wrap').forEach(wrap => {
+    wrap.draggable = true;
+    wrap.addEventListener('dragstart', e => {
+      tbDragId = wrap.dataset.id;
+      wrap.classList.add('tbtn-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    wrap.addEventListener('dragend', e => {
+      wrap.classList.remove('tbtn-dragging');
+      container.querySelectorAll('.tbtn-wrap').forEach(w => w.classList.remove('tbtn-drag-over'));
+      // Save order
+      const order = [...container.querySelectorAll('.tbtn-wrap')].map(w => w.dataset.id);
+      localStorage.setItem('reporter_topbar_order', JSON.stringify(order));
+      tbDragId = null;
+    });
+    wrap.addEventListener('dragover', e => {
+      e.preventDefault();
+      if(wrap.dataset.id !== tbDragId) wrap.classList.add('tbtn-drag-over');
+    });
+    wrap.addEventListener('dragleave', () => wrap.classList.remove('tbtn-drag-over'));
+    wrap.addEventListener('drop', e => {
+      e.preventDefault();
+      wrap.classList.remove('tbtn-drag-over');
+      if(!tbDragId || wrap.dataset.id === tbDragId) return;
+      const src = container.querySelector(`[data-id="${tbDragId}"]`);
+      if(src) container.insertBefore(src, wrap);
+    });
+  });
 }
 
 // ── history ──
@@ -1790,6 +1844,7 @@ document.addEventListener('keydown',e=>{
 });
 
 load();
+initTopbarDrag();
 // Attach scroll listener after DOM ready
 (function attachScrollListener(){
   const inner = document.getElementById('editorInner');
