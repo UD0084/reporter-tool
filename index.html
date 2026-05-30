@@ -1209,20 +1209,28 @@ function updateColWidth(val){
 function applyColumnLayout(){
   const ta = document.getElementById('editor');
   const colEd = document.getElementById('colEditor');
+  const inner = document.getElementById('editorInner');
   const wrap = document.getElementById('editorWrap');
   if(!ta || !wrap) return;
 
-  // Always use single-column textarea (no multi-col in edit mode)
   if(colEd) colEd.style.display = 'none';
   ta.style.display = '';
   ta.style.position = '';
   ta.style.opacity = '';
   ta.style.height = '100%';
   ta.style.minHeight = '400px';
+  ta.style.width = '100%';
+  ta.style.maxWidth = '';
   setReadOnlyMode(false);
 
-  // Constrain textarea width based on character count
-  // Measure actual character width
+  if(currentColWidth >= 40){
+    // Full width - no constraint
+    if(inner) inner.style.maxWidth = '';
+    return;
+  }
+
+  // Measure character width and constrain editorInner (not textarea)
+  // so lineGutter and textarea move together
   const sp = document.createElement('span');
   sp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;font-family:Georgia,serif;font-size:15px;white-space:pre';
   sp.textContent = 'あ'.repeat(currentColWidth);
@@ -1230,11 +1238,9 @@ function applyColumnLayout(){
   const colPx = sp.offsetWidth;
   document.body.removeChild(sp);
 
-  const wrapInner = wrap.clientWidth - 64; // subtract padding
-  const targetW = Math.min(colPx, wrapInner);
-
-  ta.style.width = targetW + 'px';
-  ta.style.maxWidth = '100%';
+  // Add gutter width (44px) + right padding (32px)
+  const targetW = colPx + 44 + 32;
+  if(inner) inner.style.maxWidth = targetW + 'px';
 }
 
 
