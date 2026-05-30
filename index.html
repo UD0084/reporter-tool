@@ -239,7 +239,6 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
             <div id="lineGutter" style="width:44px;flex-shrink:0;position:relative;padding-top:36px"></div>
             <div style="flex:1;position:relative">
               <textarea class="editor-textarea" id="editor" placeholder="原稿をここに入力..."></textarea>
-          <div id="searchHighlightOverlay" style="position:absolute;top:0;left:0;width:100%;pointer-events:none;overflow:hidden;font-family:Georgia,serif;font-size:15px;line-height:2;padding:36px 0 0 44px;white-space:pre-wrap;word-break:break-word;color:transparent"></div>
               <div id="paraHighlight"></div>
             </div>
           </div>
@@ -846,61 +845,43 @@ function closeSearch(){
   searchMatches = [];
   searchIdx = 0;
   document.getElementById('searchCount').textContent = '';
-  const ov=document.getElementById('searchHighlightOverlay');if(ov)ov.innerHTML='';
+
 }
 
 function onSearchInput(val){
   const ta = document.getElementById('editor');
-  const overlay = document.getElementById('searchHighlightOverlay');
-  if(!ta){ return; }
-  if(!val){
+  if(!ta || !val){
     document.getElementById('searchCount').textContent = '';
     searchMatches = [];
-    if(overlay) overlay.innerHTML = '';
     return;
   }
   const text = ta.value;
   const matches = [];
   let i = 0;
-  while((i = text.indexOf(val, i)) !== -1){ matches.push(i); i += val.length; }
+  const lower = text.toLowerCase();
+  const valLower = val.toLowerCase();
+  while((i = lower.indexOf(valLower, i)) !== -1){ matches.push(i); i += val.length; }
   searchMatches = matches;
   searchIdx = 0;
   document.getElementById('searchCount').textContent = matches.length ? `${matches.length}件` : '見つかりません';
-
-  // Build highlight overlay
-  if(overlay && matches.length){
-    let html = '';
-    let last = 0;
-    for(const pos of matches){
-      html += escHtmlSafe(text.slice(last, pos));
-      html += `<mark style="background:rgba(255,200,0,0.5);color:transparent">${escHtmlSafe(text.slice(pos, pos+val.length))}</mark>`;
-      last = pos + val.length;
-    }
-    html += escHtmlSafe(text.slice(last));
-    overlay.innerHTML = html;
-  } else if(overlay){
-    overlay.innerHTML = '';
-  }
 }
 
-function escHtmlSafe(s){
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+
 
 function highlightSearchMatch(ta, val){
   if(!searchMatches.length) return;
   const pos = searchMatches[searchIdx];
   ta.focus();
   ta.setSelectionRange(pos, pos + val.length);
-  // Scroll textarea to show match
+  // Scroll to match
   const lineH = 30;
   const lineNum = ta.value.substring(0, pos).split('\n').length - 1;
   const inner = document.getElementById('editorInner');
   if(inner) inner.scrollTop = Math.max(0, lineNum * lineH - inner.clientHeight / 3);
   document.getElementById('searchCount').textContent = `${searchIdx+1}/${searchMatches.length}件`;
-  // Return focus to search input
-  setTimeout(()=>document.getElementById('searchInput')?.focus(), 0);
+  setTimeout(()=>document.getElementById('searchInput')?.focus(), 50);
 }
+
 
 function searchNext(){
   if(!searchMatches.length){
@@ -1138,7 +1119,7 @@ function renderSources(){
     const intMeta=isInt?[s.who?`<strong>${esc(s.who)}</strong>`:'',s.interviewDate?esc(s.interviewDate):'',s.place?esc(s.place):''].filter(Boolean).join(' · '):'';
     return `<div class="sc${isH?' highlighted':''}${s._collapsed?' collapsed':''}" id="sc_${s.id}" onclick="onSourceCardClick('${s.id}')" style="cursor:pointer" draggable="true" ondragstart="srcDragStart(event,'${s.id}')" ondragover="srcDragOver(event)" ondrop="srcDrop(event,'${s.id}')" ondragend="srcDragEnd(event)">
       <div class="sc-top"><i class="ti ti-grip-vertical" style="font-size:12px;color:var(--tx3);cursor:grab;flex-shrink:0;margin-right:4px"></i><div style="flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:3px"><span class="stag ${tagClass(s.type)}">${esc(s.type)}</span>${badge}${s.note&&!isInt?`<span class="sc-note">${esc(s.note)}</span>`:''}</div>
-      <button class="sbtn del" onclick="deleteSource(event,'${s.id}')"><i class="ti ti-trash" style="font-size:11px"></i></button></div>
+      <button class="sbtn" onclick="event.stopPropagation();toggleCollapseSource('${s.id}')" style="padding:2px 4px"><i class="ti ti-chevron-${s._collapsed?'down':'up'}" style="font-size:11px"></i></button><button class="sbtn del" onclick="deleteSource(event,'${s.id}')"><i class="ti ti-trash" style="font-size:11px"></i></button></div>
       ${isInt&&intMeta?`<div style="font-size:11px;color:var(--tx);margin-bottom:4px">${intMeta}</div>`:''}
       ${s.quote?`<div class="sc-quote">${esc(s.quote.length>140?s.quote.slice(0,140)+'…':s.quote)}</div>`:''}
       ${s.translation?`<div class="sc-trans">和訳: ${esc(s.translation)}</div>`:''}
