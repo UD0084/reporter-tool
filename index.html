@@ -239,6 +239,7 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
             <div id="lineGutter" style="width:44px;flex-shrink:0;position:relative;padding-top:36px"></div>
             <div style="flex:1;position:relative">
               <textarea class="editor-textarea" id="editor" placeholder="原稿をここに入力..."></textarea>
+          <div id="searchHighlightOverlay" style="position:absolute;top:0;left:0;width:100%;pointer-events:none;overflow:hidden;font-family:Georgia,serif;font-size:15px;line-height:2;padding:36px 0 0 44px;white-space:pre-wrap;word-break:break-word;color:transparent"></div>
               <div id="paraHighlight"></div>
             </div>
           </div>
@@ -845,19 +846,45 @@ function closeSearch(){
   searchMatches = [];
   searchIdx = 0;
   document.getElementById('searchCount').textContent = '';
+  const ov=document.getElementById('searchHighlightOverlay');if(ov)ov.innerHTML='';
 }
 
 function onSearchInput(val){
   const ta = document.getElementById('editor');
-  if(!ta || !val){ document.getElementById('searchCount').textContent = ''; searchMatches = []; return; }
+  const overlay = document.getElementById('searchHighlightOverlay');
+  if(!ta){ return; }
+  if(!val){
+    document.getElementById('searchCount').textContent = '';
+    searchMatches = [];
+    if(overlay) overlay.innerHTML = '';
+    return;
+  }
   const text = ta.value;
   const matches = [];
   let i = 0;
   while((i = text.indexOf(val, i)) !== -1){ matches.push(i); i += val.length; }
   searchMatches = matches;
   searchIdx = 0;
-  // Only update count, do NOT move cursor while typing
   document.getElementById('searchCount').textContent = matches.length ? `${matches.length}件` : '見つかりません';
+
+  // Build highlight overlay
+  if(overlay && matches.length){
+    let html = '';
+    let last = 0;
+    for(const pos of matches){
+      html += escHtmlSafe(text.slice(last, pos));
+      html += `<mark style="background:rgba(255,200,0,0.5);color:transparent">${escHtmlSafe(text.slice(pos, pos+val.length))}</mark>`;
+      last = pos + val.length;
+    }
+    html += escHtmlSafe(text.slice(last));
+    overlay.innerHTML = html;
+  } else if(overlay){
+    overlay.innerHTML = '';
+  }
+}
+
+function escHtmlSafe(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 function highlightSearchMatch(ta, val){
@@ -1294,8 +1321,7 @@ function srcDragEnd(e){
   srcDragId = null;
 }
 
-function toggleCollapseSource(e, id){
-  e.stopPropagation();
+function toggleCollapseSource(id){
   const art = getCurrentArticle(); if(!art) return;
   const s = art.sources.find(x => x.id === id); if(!s) return;
   s._collapsed = !s._collapsed;
