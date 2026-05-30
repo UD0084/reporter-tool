@@ -281,7 +281,13 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
         <span id="lineCount" style="font-size:15px;font-weight:600">0 行</span>
         <span id="paraCount" style="font-size:15px;font-weight:600">0 段落</span>
         <span id="activeParaInfo" style="font-size:11px;color:var(--green);font-weight:500"></span>
-
+        <div id="paraLabelBtns" style="display:none;gap:4px;align-items:center">
+          <span style="font-size:10px;color:var(--tx3)">段落ラベル:</span>
+          <button onclick="setParaLabel('check')" style="font-size:10px;padding:2px 7px;border-radius:99px;border:none;background:#FCEBEB;color:#E24B4A;cursor:pointer">要確認</button>
+          <button onclick="setParaLabel('add')" style="font-size:10px;padding:2px 7px;border-radius:99px;border:none;background:var(--abg);color:var(--atx);cursor:pointer">要加筆</button>
+          <button onclick="setParaLabel('ok')" style="font-size:10px;padding:2px 7px;border-radius:99px;border:none;background:var(--gbg);color:var(--gtx);cursor:pointer">OK</button>
+          <button onclick="setParaLabel(null)" style="font-size:10px;padding:2px 7px;border-radius:99px;border:none;background:var(--bg2);color:var(--tx3);cursor:pointer">なし</button>
+        </div>
           </div>
     </div>
     <!-- stock pane -->
@@ -824,9 +830,28 @@ function updateLineGutter(){
   inner.style.height = (padTop + totalLines * lineH) + 'px';
 }
 
+function updateParaLabelButtons(){
+  const art = getCurrentArticle(); if(!art || !activePara) return;
+  const labels = art.paraLabels || {};
+  const current = labels[activePara];
+  const btns = document.querySelectorAll('#paraLabelBtns button');
+  const labelMap = ['check','add','ok',null];
+  btns.forEach((btn, i) => {
+    const isActive = current === labelMap[i] || (labelMap[i]===null && !current);
+    btn.style.fontWeight = isActive ? '700' : '400';
+    btn.style.outline = isActive ? '2px solid var(--tx)' : 'none';
+  });
+}
 
-
-
+function setParaLabel(label){
+  const art = getCurrentArticle(); if(!art || !activePara) return;
+  if(!art.paraLabels) art.paraLabels = {};
+  if(label === null) delete art.paraLabels[activePara];
+  else art.paraLabels[activePara] = label;
+  save(true);
+  updateLineNumbers();
+  updateParaLabelButtons();
+}
 
 function updateLineNumbers(){
   const gutter = document.getElementById('lineGutter');
@@ -1160,10 +1185,12 @@ function updateFooter(){
   document.getElementById('charCount').textContent=text.length.toLocaleString()+' 文字';
   document.getElementById('lineCount').textContent=lines+' 行';
   document.getElementById('paraCount').textContent=paras.length+' 段落';
+  const labelBtns = document.getElementById('paraLabelBtns');
   if(activePara){
     const p=paras.find(x=>x.num===activePara);
     document.getElementById('activeParaInfo').textContent=p?`▌段落${activePara}: 「${p.text.slice(0,20)}${p.text.length>20?'…':''}」`:'';
-  }else{document.getElementById('activeParaInfo').textContent='';}
+    if(labelBtns){labelBtns.style.display='flex';updateParaLabelButtons();}
+  }else{document.getElementById('activeParaInfo').textContent='';if(labelBtns) labelBtns.style.display='none';}
 }
 function getParaAtCursor(){
   if(currentColWidth<=24){
@@ -1209,27 +1236,32 @@ function updateColWidth(val){
 function applyColumnLayout(){
   const ta = document.getElementById('editor');
   const colEd = document.getElementById('colEditor');
-  if(!ta) return;
+  const wrap = document.getElementById('editorWrap');
+  if(!ta || !wrap) return;
+
+  // Always use single-column textarea (no multi-col in edit mode)
   if(colEd) colEd.style.display = 'none';
   ta.style.display = '';
   ta.style.position = '';
   ta.style.opacity = '';
   ta.style.height = '100%';
   ta.style.minHeight = '400px';
-  ta.style.width = '100%';
-  ta.style.maxWidth = '';
   setReadOnlyMode(false);
-  // Width is now purely controlled by the editorInner padding
-  // Slider controls textarea's max-width within the flex container
-  if(currentColWidth < 40){
-    const sp = document.createElement('span');
-    sp.style.cssText = 'position:fixed;top:-9999px;font-family:Georgia,serif;font-size:15px;white-space:pre';
-    sp.textContent = 'あ'.repeat(currentColWidth);
-    document.body.appendChild(sp);
-    const colPx = sp.offsetWidth;
-    document.body.removeChild(sp);
-    ta.style.maxWidth = colPx + 'px';
-  }
+
+  // Constrain textarea width based on character count
+  // Measure actual character width
+  const sp = document.createElement('span');
+  sp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;font-family:Georgia,serif;font-size:15px;white-space:pre';
+  sp.textContent = 'あ'.repeat(currentColWidth);
+  document.body.appendChild(sp);
+  const colPx = sp.offsetWidth;
+  document.body.removeChild(sp);
+
+  const wrapInner = wrap.clientWidth - 64; // subtract padding
+  const targetW = Math.min(colPx, wrapInner);
+
+  ta.style.width = targetW + 'px';
+  ta.style.maxWidth = '100%';
 }
 
 
@@ -1256,7 +1288,8 @@ function renderSources(){
   if(srcTagFilter) sourcesToShow=sourcesToShow.filter(s=>(s.tags||[]).includes(srcTagFilter));
   const sorted=sourcesToShow.sort((a,b)=>{const ap=a.paraNum||999,bp=b.paraNum||999;return ap-bp;});
   html+=sorted.map(s=>{
-    const isH=activePara&&s.paraNum===activePara;
+    const pnumsH = s.paraNums && s.paraNums.length ? s.paraNums : (s.paraNum ? [s.paraNum] : []);
+    const isH=activePara&&pnumsH.includes(activePara);
     const badge=s.paraNum?`<span class="sc-para-badge linked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link" style="font-size:9px"></i>段落${s.paraNum}</span>`:`<span class="sc-para-badge unlinked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link-off" style="font-size:9px"></i>紐付け</span>`;
     const isInt=s.sourceKind==='interview';
     const intMeta=isInt?[s.who?`<strong>${esc(s.who)}</strong>`:'',s.interviewDate?esc(s.interviewDate):'',s.place?esc(s.place):''].filter(Boolean).join(' · '):'';
@@ -1286,19 +1319,63 @@ function openParaPicker(e,sourceId){
   e.stopPropagation();const art=getCurrentArticle();if(!art)return;
   pickerSourceId=sourceId;const paras=getParas(art.text);const s=art.sources.find(x=>x.id===sourceId);
   const picker=document.getElementById('paraPicker');
-  let html=`<div class="para-picker-head">段落を選んで紐付け</div>`;
+  const curNums = s ? (s.paraNums && s.paraNums.length ? s.paraNums : (s.paraNum ? [s.paraNum] : [])) : [];
+  let html=`<div class="para-picker-head">段落を選択（複数可）</div>`;
   if(!paras.length)html+='<div style="padding:10px 12px;font-size:12px;color:var(--tx3)">原稿に段落がありません</div>';
-  else html+=paras.map(p=>`<div class="para-picker-item${s&&s.paraNum===p.num?' active':''}" onclick="linkToPara(${p.num})"><div class="pnum">段落 ${p.num}</div><div>${esc(p.text.slice(0,50))}${p.text.length>50?'…':''}</div></div>`).join('');
-  if(s&&s.paraNum)html+=`<div class="para-picker-unlink" onclick="linkToPara(null)"><i class="ti ti-link-off" style="font-size:12px"></i>紐付けを解除</div>`;
+  else html+=paras.map(p=>{
+    const checked = curNums.includes(p.num);
+    return `<div class="para-picker-item${checked?' active':''}" onclick="toggleParaLink(${p.num})" style="display:flex;align-items:flex-start;gap:8px">
+      <span style="width:14px;height:14px;border:1.5px solid ${checked?'var(--green)':'var(--bd2)'};border-radius:3px;flex-shrink:0;margin-top:2px;background:${checked?'var(--green)':'transparent'};display:flex;align-items:center;justify-content:center">
+        ${checked?'<i class="ti ti-check" style="font-size:9px;color:#fff"></i>':''}
+      </span>
+      <div><div class="pnum">段落 ${p.num}</div><div>${esc(p.text.slice(0,50))}${p.text.length>50?'…':''}</div></div>
+    </div>`;
+  }).join('');
+  if(curNums.length)html+=`<div class="para-picker-unlink" onclick="linkToPara(null)"><i class="ti ti-link-off" style="font-size:12px"></i>全て解除</div>`;
   picker.innerHTML=html;picker.style.display='block';
   const rect=e.target.getBoundingClientRect();let top=rect.bottom+6,left=rect.left;
   if(left+260>window.innerWidth)left=window.innerWidth-268;if(top+300>window.innerHeight)top=rect.top-306;
   picker.style.top=top+'px';picker.style.left=left+'px';
 }
+function toggleParaLink(num){
+  const art=getCurrentArticle();if(!art||!pickerSourceId)return;
+  const s=art.sources.find(x=>x.id===pickerSourceId);if(!s)return;
+  if(!s.paraNums) s.paraNums = s.paraNum ? [s.paraNum] : [];
+  const i = s.paraNums.indexOf(num);
+  if(i >= 0) s.paraNums.splice(i,1);
+  else s.paraNums.push(num);
+  s.paraNum = s.paraNums[0] || null;
+  save(true);
+  renderPickerInPlace();
+  renderSources();
+}
 
-
-
-function linkToPara(num){const art=getCurrentArticle();if(!art||!pickerSourceId)return;const s=art.sources.find(x=>x.id===pickerSourceId);if(s)s.paraNum=num||null;save(true);closePicker();renderSources();}
+function renderPickerInPlace(){
+  const art=getCurrentArticle();if(!art||!pickerSourceId)return;
+  const s=art.sources.find(x=>x.id===pickerSourceId);if(!s)return;
+  const picker=document.getElementById('paraPicker');if(!picker||picker.style.display==='none')return;
+  const paras=getParas(art.text);
+  const curNums = s.paraNums && s.paraNums.length ? s.paraNums : (s.paraNum ? [s.paraNum] : []);
+  let html=`<div class="para-picker-head">段落を選択（複数可）</div>`;
+  if(!paras.length)html+='<div style="padding:10px 12px;font-size:12px;color:var(--tx3)">原稿に段落がありません</div>';
+  else html+=paras.map(p=>{
+    const checked=curNums.includes(p.num);
+    return `<div class="para-picker-item${checked?' active':''}" onclick="toggleParaLink(${p.num})" style="display:flex;align-items:flex-start;gap:8px">
+      <span style="width:14px;height:14px;border:1.5px solid ${checked?'var(--green)':'var(--bd2)'};border-radius:3px;flex-shrink:0;margin-top:2px;background:${checked?'var(--green)':'transparent'};display:inline-flex;align-items:center;justify-content:center">
+        ${checked?'<i class="ti ti-check" style="font-size:9px;color:#fff"></i>':''}
+      </span>
+      <div><div class="pnum">段落 ${p.num}</div><div>${esc(p.text.slice(0,50))}${p.text.length>50?'…':''}</div></div>
+    </div>`;
+  }).join('');
+  if(curNums.length)html+=`<div class="para-picker-unlink" onclick="linkToPara(null)"><i class="ti ti-link-off" style="font-size:12px"></i>全て解除</div>`;
+  picker.innerHTML=html;
+}
+function linkToPara(num){
+  const art=getCurrentArticle();if(!art||!pickerSourceId)return;
+  const s=art.sources.find(x=>x.id===pickerSourceId);
+  if(s){s.paraNum=null;s.paraNums=[];}
+  save(true);closePicker();renderSources();
+}
 function closePicker(){document.getElementById('paraPicker').style.display='none';pickerSourceId=null;}
 document.addEventListener('click',e=>{const p=document.getElementById('paraPicker');if(p.style.display!=='none'&&!p.contains(e.target))closePicker();});
 
@@ -1463,33 +1540,8 @@ function copyQuote(id){
 }
 
 function highlightParaInEditor(paraNum){
-  const ta = document.getElementById('editor');
-  const hl = document.getElementById('paraHighlight');
-  const inner = document.getElementById('editorInner');
-  if(!ta || !paraNum){ if(hl) hl.style.display='none'; return; }
-  const text = ta.value;
-  const paras = getParas(text);
-  const para = paras.find(p => p.num === paraNum);
-  if(!para){ if(hl) hl.style.display='none'; return; }
-  const allLines = text.split('\n');
-  const lineH = 30;
-  const padTop = 36;
-  let charPos = 0;
-  for(let i = 0; i < para.lineIdx; i++) charPos += allLines[i].length + 1;
-  ta.focus();
-  ta.setSelectionRange(charPos, charPos + para.text.length);
-  const scrollTarget = padTop + para.lineIdx * lineH - (inner ? inner.clientHeight/3 : 200);
-  if(inner) inner.scrollTop = Math.max(0, scrollTarget);
-  if(hl){
-    setTimeout(()=>{
-      const scrolled = inner ? inner.scrollTop : 0;
-      hl.style.display = 'block';
-      hl.style.top = (padTop + para.lineIdx * lineH - scrolled) + 'px';
-      hl.style.height = (lineH + 4) + 'px';
-      hl.style.left = '28px';
-      hl.style.right = '28px';
-    }, 40);
-  }
+  if(paraNum) highlightParasInEditor([paraNum]);
+  else{const hl=document.getElementById('paraHighlight');if(hl)hl.style.display='none';}
 }
 
 
@@ -1537,21 +1589,6 @@ function closeQuotePopup(){
   const popup = document.getElementById('quotePopup');
   if(popup) popup.style.display = 'none';
 }
-
-
-function onSourceCardClick(id){
-  const art = getCurrentArticle(); if(!art) return;
-  const s = art.sources.find(x => x.id === id); if(!s) return;
-  if(s.paraNum){
-    activePara = s.paraNum;
-    updateFooter();
-    renderSources();
-    highlightParaInEditor(s.paraNum);
-  }
-  if(s.quote) showQuotePopup(s, id);
-}
-
-
 
 
 function moveSourceToStock(id){
@@ -1848,24 +1885,6 @@ initTopbarDrag();
   }
 })();
 </script>
-<div id="shortcutModal" class="modal-bg hidden">
-  <div class="modal" style="width:460px">
-    <h2><i class="ti ti-keyboard"></i> キーボードショートカット</h2>
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <tr><td style="padding:5px 0"><kbd style="background:var(--bg2);border:0.5px solid var(--bd2);border-radius:4px;padding:2px 7px;font-family:monospace">Cmd/Ctrl + S</kbd></td><td style="color:var(--tx2);padding:5px 8px">保存</td></tr>
-      <tr><td style="padding:5px 0"><kbd style="background:var(--bg2);border:0.5px solid var(--bd2);border-radius:4px;padding:2px 7px;font-family:monospace">Cmd/Ctrl + F</kbd></td><td style="color:var(--tx2);padding:5px 8px">検索バーを開く</td></tr>
-      <tr><td style="padding:5px 0"><kbd style="background:var(--bg2);border:0.5px solid var(--bd2);border-radius:4px;padding:2px 7px;font-family:monospace">Enter（検索中）</kbd></td><td style="color:var(--tx2);padding:5px 8px">次の一致へ</td></tr>
-      <tr><td style="padding:5px 0"><kbd style="background:var(--bg2);border:0.5px solid var(--bd2);border-radius:4px;padding:2px 7px;font-family:monospace">Shift + Enter（検索中）</kbd></td><td style="color:var(--tx2);padding:5px 8px">前の一致へ</td></tr>
-      <tr><td style="padding:5px 0"><kbd style="background:var(--bg2);border:0.5px solid var(--bd2);border-radius:4px;padding:2px 7px;font-family:monospace">Escape</kbd></td><td style="color:var(--tx2);padding:5px 8px">検索・ポップアップを閉じる</td></tr>
-      <tr><td style="padding:5px 0"><kbd style="background:var(--bg2);border:0.5px solid var(--bd2);border-radius:4px;padding:2px 7px;font-family:monospace">?</kbd></td><td style="color:var(--tx2);padding:5px 8px">このヘルプを表示</td></tr>
-    </table>
-    <div class="modal-footer"><button class="mbtn primary" onclick="closeModal('shortcutModal')">閉じる</button></div>
-  </div>
-</div>
-
-<div id="quotePopup" style="display:none" class="quote-popup"></div>
-</body>
-</html>
 <div id="shortcutModal" class="modal-bg hidden">
   <div class="modal" style="width:460px">
     <h2><i class="ti ti-keyboard"></i> キーボードショートカット</h2>
