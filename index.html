@@ -174,6 +174,11 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
 .quote-popup-text{font-style:italic;color:var(--tx);border-left:2px solid var(--green);padding-left:8px;line-height:1.6}
 .quote-popup-url{font-size:10px;color:var(--tx3);margin-top:6px;word-break:break-all}
 .quote-popup-url a{color:var(--blue);text-decoration:none}
+.sc.collapsed .sc-quote{display:none}
+.sc.collapsed .sc-trans{display:none}
+.sc.collapsed .sc-url{display:none}
+.sc.collapsed .sc-actions{display:none}
+.sc.collapsed .sc-verify-result{display:none}
 .sc.src-dragging{opacity:0.4}
 .sc.src-drag-over{border-color:var(--green);border-style:dashed}
 .memo-active{background:var(--abg) !important}
@@ -199,6 +204,7 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
     <button class="tbtn" id="stockBtn" onclick="toggleStockPane()"><i class="ti ti-bookmarks"></i> ストック<span id="stockCount" style="margin-left:4px;background:var(--bbg);color:var(--btx);font-size:10px;padding:1px 6px;border-radius:99px;font-weight:600;display:none"></span></button>
     <button class="tbtn" onclick="exportData()" title="データをJSONファイルとして保存"><i class="ti ti-download"></i> バックアップ</button>
     <label class="tbtn" title="JSONファイルからデータを復元" style="cursor:pointer"><i class="ti ti-upload"></i> 復元<input type="file" accept=".json" onchange="importData(event)" style="display:none"></label>
+    <button class="tbtn" id="searchToggleBtn" onclick="toggleSearch()"><i class="ti ti-search"></i> 検索</button>
     <button class="tbtn" id="memoToggleBtn" onclick="toggleMemo()"><i class="ti ti-note"></i> メモ</button>
     <button class="tbtn" onclick="printArticle()"><i class="ti ti-printer"></i> 印刷／PDF</button>
     <button class="tbtn" onclick="copyAllForVerify()"><i class="ti ti-clipboard-copy"></i> 検証用コピー</button>
@@ -238,6 +244,19 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
           </div>
         </div>
         <div id="colEditor" style="display:none;width:100%;height:100%;position:absolute;top:0;left:0;overflow:auto;padding:36px 32px;gap:32px;align-items:flex-start"></div>
+      </div>
+      <div id="searchBar" style="display:none;padding:6px 16px;border-bottom:0.5px solid var(--bd);background:var(--bg);display:none;align-items:center;gap:8px;flex-shrink:0">
+        <i class="ti ti-search" style="font-size:13px;color:var(--tx3)"></i>
+        <input id="searchInput" class="fi" placeholder="検索..." style="width:160px;padding:4px 8px;font-size:12px" oninput="onSearchInput(this.value)" onkeydown="searchKeydown(event)">
+        <span id="searchCount" style="font-size:11px;color:var(--tx3);min-width:40px"></span>
+        <button class="sbtn" onclick="searchPrev()"><i class="ti ti-chevron-up" style="font-size:11px"></i></button>
+        <button class="sbtn" onclick="searchNext()"><i class="ti ti-chevron-down" style="font-size:11px"></i></button>
+        <div style="width:1px;height:16px;background:var(--bd2)"></div>
+        <input id="replaceInput" class="fi" placeholder="置換後..." style="width:140px;padding:4px 8px;font-size:12px">
+        <button class="sbtn" onclick="replaceOne()" style="font-size:11px">置換</button>
+        <button class="sbtn" onclick="replaceAll()" style="font-size:11px">全置換</button>
+        <div style="flex:1"></div>
+        <button class="sbtn" onclick="closeSearch()"><i class="ti ti-x" style="font-size:11px"></i></button>
       </div>
       <div id="memoPaneWrap" style="display:none;flex-shrink:0;border-top:1.5px solid var(--abg);background:var(--bg)">
         <div style="padding:6px 16px 4px;display:flex;align-items:center;justify-content:space-between">
@@ -802,6 +821,99 @@ function updateLineNumbers(){
 
 let memoOpen = false;
 
+let searchMatches = [];
+let searchIdx = 0;
+
+function toggleSearch(){
+  const bar = document.getElementById('searchBar');
+  const btn = document.getElementById('searchToggleBtn');
+  const isOpen = bar.style.display === 'flex';
+  bar.style.display = isOpen ? 'none' : 'flex';
+  btn.classList.toggle('active', !isOpen);
+  if(!isOpen){
+    setTimeout(()=>document.getElementById('searchInput')?.focus(), 50);
+  } else {
+    closeSearch();
+  }
+}
+
+function closeSearch(){
+  const bar = document.getElementById('searchBar');
+  const btn = document.getElementById('searchToggleBtn');
+  bar.style.display = 'none';
+  btn.classList.remove('active');
+  searchMatches = [];
+  searchIdx = 0;
+  document.getElementById('searchCount').textContent = '';
+}
+
+function onSearchInput(val){
+  const ta = document.getElementById('editor');
+  if(!ta || !val){ document.getElementById('searchCount').textContent = ''; searchMatches = []; return; }
+  const text = ta.value;
+  const matches = [];
+  let i = 0;
+  while((i = text.indexOf(val, i)) !== -1){ matches.push(i); i += val.length; }
+  searchMatches = matches;
+  searchIdx = 0;
+  document.getElementById('searchCount').textContent = matches.length ? `${searchIdx+1}/${matches.length}件` : '見つかりません';
+  if(matches.length) highlightSearchMatch(ta, val);
+}
+
+function highlightSearchMatch(ta, val){
+  if(!searchMatches.length) return;
+  const pos = searchMatches[searchIdx];
+  ta.focus();
+  ta.setSelectionRange(pos, pos + val.length);
+  document.getElementById('searchCount').textContent = `${searchIdx+1}/${searchMatches.length}件`;
+}
+
+function searchNext(){
+  if(!searchMatches.length) return;
+  searchIdx = (searchIdx + 1) % searchMatches.length;
+  const val = document.getElementById('searchInput').value;
+  highlightSearchMatch(document.getElementById('editor'), val);
+}
+
+function searchPrev(){
+  if(!searchMatches.length) return;
+  searchIdx = (searchIdx - 1 + searchMatches.length) % searchMatches.length;
+  const val = document.getElementById('searchInput').value;
+  highlightSearchMatch(document.getElementById('editor'), val);
+}
+
+function searchKeydown(e){
+  if(e.key === 'Enter'){ e.shiftKey ? searchPrev() : searchNext(); }
+  if(e.key === 'Escape') closeSearch();
+}
+
+function replaceOne(){
+  const ta = document.getElementById('editor');
+  const search = document.getElementById('searchInput').value;
+  const replace = document.getElementById('replaceInput').value;
+  if(!search || !ta) return;
+  if(ta.selectionStart !== ta.selectionEnd && ta.value.substring(ta.selectionStart, ta.selectionEnd) === search){
+    const before = ta.value.substring(0, ta.selectionStart);
+    const after = ta.value.substring(ta.selectionEnd);
+    ta.value = before + replace + after;
+    autoSave();
+  }
+  onSearchInput(search);
+}
+
+function replaceAll(){
+  const ta = document.getElementById('editor');
+  const search = document.getElementById('searchInput').value;
+  const replace = document.getElementById('replaceInput').value;
+  if(!search || !ta) return;
+  const count = (ta.value.split(search).length - 1);
+  if(!count){ alert('見つかりません'); return; }
+  if(!confirm(`「${search}」を「${replace}」に${count}件置換しますか？`)) return;
+  ta.value = ta.value.split(search).join(replace);
+  autoSave();
+  onSearchInput(search);
+}
+
 function toggleMemo(){
   memoOpen = !memoOpen;
   const wrap = document.getElementById('memoPaneWrap');
@@ -979,7 +1091,7 @@ function renderSources(){
     const badge=s.paraNum?`<span class="sc-para-badge linked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link" style="font-size:9px"></i>段落${s.paraNum}</span>`:`<span class="sc-para-badge unlinked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link-off" style="font-size:9px"></i>紐付け</span>`;
     const isInt=s.sourceKind==='interview';
     const intMeta=isInt?[s.who?`<strong>${esc(s.who)}</strong>`:'',s.interviewDate?esc(s.interviewDate):'',s.place?esc(s.place):''].filter(Boolean).join(' · '):'';
-    return `<div class="sc${isH?' highlighted':''}" id="sc_${s.id}" onclick="onSourceCardClick('${s.id}')" style="cursor:pointer" draggable="true" ondragstart="srcDragStart(event,'${s.id}')" ondragover="srcDragOver(event)" ondrop="srcDrop(event,'${s.id}')" ondragend="srcDragEnd(event)">
+    return `<div class="sc${isH?' highlighted':''}${s._collapsed?' collapsed':''}" id="sc_${s.id}" onclick="onSourceCardClick('${s.id}')" style="cursor:pointer" draggable="true" ondragstart="srcDragStart(event,'${s.id}')" ondragover="srcDragOver(event)" ondrop="srcDrop(event,'${s.id}')" ondragend="srcDragEnd(event)">
       <div class="sc-top"><i class="ti ti-grip-vertical" style="font-size:12px;color:var(--tx3);cursor:grab;flex-shrink:0;margin-right:4px"></i><div style="flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:3px"><span class="stag ${tagClass(s.type)}">${esc(s.type)}</span>${badge}${s.note&&!isInt?`<span class="sc-note">${esc(s.note)}</span>`:''}</div>
       <button class="sbtn del" onclick="deleteSource(event,'${s.id}')"><i class="ti ti-trash" style="font-size:11px"></i></button></div>
       ${isInt&&intMeta?`<div style="font-size:11px;color:var(--tx);margin-bottom:4px">${intMeta}</div>`:''}
@@ -1162,6 +1274,14 @@ function srcDragEnd(e){
   e.currentTarget.classList.remove('src-dragging');
   document.querySelectorAll('.sc').forEach(el => el.classList.remove('src-drag-over'));
   srcDragId = null;
+}
+
+function toggleCollapseSource(e, id){
+  e.stopPropagation();
+  const art = getCurrentArticle(); if(!art) return;
+  const s = art.sources.find(x => x.id === id); if(!s) return;
+  s._collapsed = !s._collapsed;
+  renderSources();
 }
 
 function copyQuote(id){
@@ -1557,7 +1677,8 @@ function closeModal(id){document.getElementById(id).classList.add('hidden');}
 document.querySelectorAll('.modal-bg').forEach(bg=>{bg.addEventListener('click',function(e){if(e.target===this)this.classList.add('hidden');});});
 document.addEventListener('keydown',e=>{
   if((e.metaKey||e.ctrlKey)&&e.key==='s'){e.preventDefault();saveArticle();}
-  if(e.key==='Escape'){closePicker();closeQuotePopup();}
+  if(e.key==='Escape'){closePicker();closeQuotePopup();closeSearch();}
+  if((e.metaKey||e.ctrlKey)&&e.key==='f'){e.preventDefault();toggleSearch();}
 });
 
 load();
