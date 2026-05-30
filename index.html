@@ -1027,6 +1027,7 @@ function openAddSourceModal(sourceId){
     document.getElementById('nType').value='その他';
     ['iWho','iDate','iPlace','iFile','iQuote','iNote','iTags'].forEach(id=>document.getElementById(id).value='');
   }
+  closeQuotePopup();
   document.getElementById('addSourceModal').classList.remove('hidden');
   showSrcTagSuggestions();
 }
@@ -1306,6 +1307,7 @@ function openEditStock(id){
   editingStockId=id;
   document.getElementById('sUrl').value=s.url||'';document.getElementById('sQuote').value=s.quote||'';
   document.getElementById('sNote').value=s.note||'';document.getElementById('sTags').value=(s.tags||[]).join(', ');
+  closeQuotePopup();
   document.getElementById('addStockModal').classList.remove('hidden');showTagSuggestions();
 }
 function showTagSuggestions(){
