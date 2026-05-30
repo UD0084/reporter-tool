@@ -85,8 +85,6 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 
 
 .line-gutter{width:36px;}
-.para-label-dot{position:absolute;width:6px;height:6px;border-radius:50%;right:0px;transform:translateY(-50%)}
-.label-check{background:#E24B4A}.label-add{background:#E07B00}.label-ok{background:#1D9E75}
 .line-num{position:absolute;right:6px;font-size:10px;font-weight:600;color:var(--green);font-family:var(--font);line-height:1}
 .editor-inner{flex:1;overflow:auto;padding:0 32px 36px 0;position:relative}
 .headline-box{padding:14px 32px 0 32px;flex-shrink:0;border-bottom:0.5px solid var(--bd);background:var(--bg);width:100%}
@@ -283,13 +281,7 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
         <span id="lineCount" style="font-size:15px;font-weight:600">0 行</span>
         <span id="paraCount" style="font-size:15px;font-weight:600">0 段落</span>
         <span id="activeParaInfo" style="font-size:11px;color:var(--green);font-weight:500"></span>
-        <div id="paraLabelBtns" style="display:none;gap:4px;align-items:center">
-          <span style="font-size:10px;color:var(--tx3)">段落ラベル:</span>
-          <button onclick="setParaLabel('check')" style="font-size:10px;padding:2px 7px;border-radius:99px;border:none;background:#FCEBEB;color:#E24B4A;cursor:pointer">要確認</button>
-          <button onclick="setParaLabel('add')" style="font-size:10px;padding:2px 7px;border-radius:99px;border:none;background:var(--abg);color:var(--atx);cursor:pointer">要加筆</button>
-          <button onclick="setParaLabel('ok')" style="font-size:10px;padding:2px 7px;border-radius:99px;border:none;background:var(--gbg);color:var(--gtx);cursor:pointer">OK</button>
-          <button onclick="setParaLabel(null)" style="font-size:10px;padding:2px 7px;border-radius:99px;border:none;background:var(--bg2);color:var(--tx3);cursor:pointer">なし</button>
-        </div>
+
           </div>
     </div>
     <!-- stock pane -->
@@ -832,14 +824,6 @@ function updateLineGutter(){
   inner.style.height = (padTop + totalLines * lineH) + 'px';
 }
 
-function setParaLabel(label){
-  const art = getCurrentArticle(); if(!art || !activePara) return;
-  if(!art.paraLabels) art.paraLabels = {};
-  if(label === null) delete art.paraLabels[activePara];
-  else art.paraLabels[activePara] = label;
-  save(true);
-  updateLineNumbers();
-}
 
 function updateLineNumbers(){
   const gutter = document.getElementById('lineGutter');
@@ -1171,12 +1155,10 @@ function updateFooter(){
   document.getElementById('charCount').textContent=text.length.toLocaleString()+' 文字';
   document.getElementById('lineCount').textContent=lines+' 行';
   document.getElementById('paraCount').textContent=paras.length+' 段落';
-  const labelBtns = document.getElementById('paraLabelBtns');
   if(activePara){
     const p=paras.find(x=>x.num===activePara);
     document.getElementById('activeParaInfo').textContent=p?`▌段落${activePara}: 「${p.text.slice(0,20)}${p.text.length>20?'…':''}」`:'';
-    if(labelBtns) labelBtns.style.display='flex';
-  }else{document.getElementById('activeParaInfo').textContent='';if(labelBtns) labelBtns.style.display='none';}
+  }else{document.getElementById('activeParaInfo').textContent='';}
 }
 function getParaAtCursor(){
   if(currentColWidth<=24){
