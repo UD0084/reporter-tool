@@ -1544,6 +1544,21 @@ function closeQuotePopup(){
 }
 
 
+function onSourceCardClick(id){
+  const art = getCurrentArticle(); if(!art) return;
+  const s = art.sources.find(x => x.id === id); if(!s) return;
+  if(s.paraNum){
+    activePara = s.paraNum;
+    updateFooter();
+    renderSources();
+    highlightParaInEditor(s.paraNum);
+  }
+  if(s.quote) showQuotePopup(s, id);
+}
+
+
+
+
 function moveSourceToStock(id){
   const art=getCurrentArticle();if(!art)return;
   const s=art.sources.find(x=>x.id===id);if(!s)return;
