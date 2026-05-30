@@ -176,6 +176,7 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
 .quote-popup-url a{color:var(--blue);text-decoration:none}
 .sc.src-dragging{opacity:0.4}
 .sc.src-drag-over{border-color:var(--green);border-style:dashed}
+.memo-active{background:var(--abg) !important}
 .src-tag-chip{font-size:10px;padding:1px 7px;border-radius:99px;background:var(--pbg);color:var(--ptx);display:inline-flex;align-items:center;gap:3px}
 .src-tag-filter-btn{font-size:10px;padding:2px 8px;border-radius:99px;border:0.5px solid var(--bd2);background:transparent;cursor:pointer;color:var(--tx2);font-family:var(--font)}
 .src-tag-filter-btn:hover{background:var(--pbg);color:var(--ptx)}
@@ -198,6 +199,7 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
     <button class="tbtn" id="stockBtn" onclick="toggleStockPane()"><i class="ti ti-bookmarks"></i> ストック<span id="stockCount" style="margin-left:4px;background:var(--bbg);color:var(--btx);font-size:10px;padding:1px 6px;border-radius:99px;font-weight:600;display:none"></span></button>
     <button class="tbtn" onclick="exportData()" title="データをJSONファイルとして保存"><i class="ti ti-download"></i> バックアップ</button>
     <label class="tbtn" title="JSONファイルからデータを復元" style="cursor:pointer"><i class="ti ti-upload"></i> 復元<input type="file" accept=".json" onchange="importData(event)" style="display:none"></label>
+    <button class="tbtn" id="memoToggleBtn" onclick="toggleMemo()"><i class="ti ti-note"></i> メモ</button>
     <button class="tbtn" onclick="printArticle()"><i class="ti ti-printer"></i> 印刷／PDF</button>
     <button class="tbtn" onclick="copyAllForVerify()"><i class="ti ti-clipboard-copy"></i> 検証用コピー</button>
   </div>
@@ -237,6 +239,14 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
         </div>
         <div id="colEditor" style="display:none;width:100%;height:100%;position:absolute;top:0;left:0;overflow:auto;padding:36px 32px;gap:32px;align-items:flex-start"></div>
       </div>
+      <div id="memoPaneWrap" style="display:none;flex-shrink:0;border-top:1.5px solid var(--abg);background:var(--bg)">
+        <div style="padding:6px 16px 4px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:11px;font-weight:500;color:var(--atx)"><i class="ti ti-note" style="font-size:12px"></i> 取材メモ・デスクへのコメント</span>
+          <span id="memoCount" style="font-size:10px;color:var(--tx3)"></span>
+        </div>
+        <textarea id="memoArea" placeholder="取材メモ、確認事項、デスクへのコメントなど..." oninput="onMemoInput(this.value)"
+          style="width:100%;height:120px;border:none;outline:none;resize:none;font-size:13px;line-height:1.7;font-family:var(--font);color:var(--tx);background:transparent;padding:0 16px 10px;display:block"></textarea>
+      </div>
       <div class="editor-footer">
         <i class="ti ti-columns" style="font-size:13px;color:var(--tx3)"></i>
         <input type="range" id="colSlider" min="11" max="40" value="40" step="1" style="width:120px" oninput="updateColWidth(parseInt(this.value))">
@@ -246,7 +256,7 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
         <span id="lineCount" style="font-size:15px;font-weight:600">0 行</span>
         <span id="paraCount" style="font-size:15px;font-weight:600">0 段落</span>
         <span id="activeParaInfo" style="font-size:11px;color:var(--green);font-weight:500"></span>
-      </div>
+          </div>
     </div>
     <!-- stock pane -->
     <div class="stock-pane" id="stockPane">
@@ -750,6 +760,7 @@ function renderEditor(){
   if(hl) hl.value=(art&&art.headline)||'';
   updateFooter();
   updateLineNumbers();
+  loadMemo();
   setTimeout(()=>applyColumnLayout(),30);
 }
 
@@ -788,6 +799,55 @@ function updateLineNumbers(){
   gutter.innerHTML = html;
 }
 
+
+let memoOpen = false;
+
+function toggleMemo(){
+  memoOpen = !memoOpen;
+  const wrap = document.getElementById('memoPaneWrap');
+  const btn = document.getElementById('memoToggleBtn');
+  if(wrap) wrap.style.display = memoOpen ? 'block' : 'none';
+  if(btn){
+    btn.classList.toggle('active', memoOpen);
+    btn.style.background = memoOpen ? 'var(--abg)' : '';
+    btn.style.color = memoOpen ? 'var(--atx)' : '';
+    btn.style.borderColor = memoOpen ? '#FAC775' : '';
+  }
+  if(memoOpen){
+    const art = getCurrentArticle();
+    const ta = document.getElementById('memoArea');
+    if(ta && art) ta.value = art.memo || '';
+    updateMemoCount();
+    setTimeout(()=>document.getElementById('memoArea')?.focus(), 50);
+  }
+}
+
+function onMemoInput(val){
+  const art = getCurrentArticle(); if(!art) return;
+  art.memo = val;
+  updateMemoCount();
+  try{localStorage.setItem(SK, JSON.stringify(state));}catch(e){}
+}
+
+function updateMemoCount(){
+  const ta = document.getElementById('memoArea');
+  const el = document.getElementById('memoCount');
+  if(ta && el) el.textContent = ta.value.length ? ta.value.length + '字' : '';
+}
+
+function loadMemo(){
+  const art = getCurrentArticle();
+  const ta = document.getElementById('memoArea');
+  if(ta && art) ta.value = art.memo || '';
+  updateMemoCount();
+  // Show memo button badge if memo exists
+  const btn = document.getElementById('memoToggleBtn');
+  if(btn && art && art.memo){
+    btn.innerHTML = '<i class="ti ti-note"></i> メモ <span style="background:var(--atx);color:#fff;font-size:9px;padding:1px 5px;border-radius:99px">●</span>';
+  } else if(btn){
+    btn.innerHTML = '<i class="ti ti-note"></i> メモ';
+  }
+}
 
 function updateLastSavedLabel(){
   const el = document.getElementById('lastSavedLabel');
