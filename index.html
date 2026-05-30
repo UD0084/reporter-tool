@@ -85,6 +85,8 @@ html,body{height:100%;font-family:var(--font);background:var(--bg3);color:var(--
 
 
 .line-gutter{width:36px;}
+.para-label-dot{position:absolute;width:6px;height:6px;border-radius:50%;right:0px;transform:translateY(-50%)}
+.label-check{background:#E24B4A}.label-add{background:#E07B00}.label-ok{background:#1D9E75}
 .line-num{position:absolute;right:6px;font-size:10px;font-weight:600;color:var(--green);font-family:var(--font);line-height:1}
 .editor-inner{flex:1;overflow:auto;padding:0 32px 36px 0;position:relative}
 .headline-box{padding:14px 32px 0 32px;flex-shrink:0;border-bottom:0.5px solid var(--bd);background:var(--bg);width:100%}
@@ -830,19 +832,6 @@ function updateLineGutter(){
   inner.style.height = (padTop + totalLines * lineH) + 'px';
 }
 
-function updateParaLabelButtons(){
-  const art = getCurrentArticle(); if(!art || !activePara) return;
-  const labels = art.paraLabels || {};
-  const current = labels[activePara];
-  const btns = document.querySelectorAll('#paraLabelBtns button');
-  const labelMap = ['check','add','ok',null];
-  btns.forEach((btn, i) => {
-    const isActive = current === labelMap[i] || (labelMap[i]===null && !current);
-    btn.style.fontWeight = isActive ? '700' : '400';
-    btn.style.outline = isActive ? '2px solid var(--tx)' : 'none';
-  });
-}
-
 function setParaLabel(label){
   const art = getCurrentArticle(); if(!art || !activePara) return;
   if(!art.paraLabels) art.paraLabels = {};
@@ -850,21 +839,18 @@ function setParaLabel(label){
   else art.paraLabels[activePara] = label;
   save(true);
   updateLineNumbers();
-  updateParaLabelButtons();
 }
 
 function updateLineNumbers(){
   const gutter = document.getElementById('lineGutter');
   if(!gutter) return;
   const lineH = 30;
-  const padTop = 36;
   let html = '';
   for(let i = 5; i <= 300; i += 5){
-    const top = padTop + (i - 1) * lineH;
+    const top = (i - 1) * lineH;
     html += `<div style="position:absolute;right:6px;top:${top}px;font-size:10px;font-weight:600;color:#1D9E75;font-family:-apple-system,sans-serif;line-height:1;user-select:none">${i}</div>`;
   }
-  gutter.style.height = '0';
-  gutter.style.overflow = 'visible';
+  gutter.style.height = (300 * lineH) + 'px';
   gutter.innerHTML = html;
 }
 
@@ -1189,7 +1175,7 @@ function updateFooter(){
   if(activePara){
     const p=paras.find(x=>x.num===activePara);
     document.getElementById('activeParaInfo').textContent=p?`▌段落${activePara}: 「${p.text.slice(0,20)}${p.text.length>20?'…':''}」`:'';
-    if(labelBtns){labelBtns.style.display='flex';updateParaLabelButtons();}
+    if(labelBtns) labelBtns.style.display='flex';
   }else{document.getElementById('activeParaInfo').textContent='';if(labelBtns) labelBtns.style.display='none';}
 }
 function getParaAtCursor(){
@@ -1288,8 +1274,7 @@ function renderSources(){
   if(srcTagFilter) sourcesToShow=sourcesToShow.filter(s=>(s.tags||[]).includes(srcTagFilter));
   const sorted=sourcesToShow.sort((a,b)=>{const ap=a.paraNum||999,bp=b.paraNum||999;return ap-bp;});
   html+=sorted.map(s=>{
-    const pnumsH = s.paraNums && s.paraNums.length ? s.paraNums : (s.paraNum ? [s.paraNum] : []);
-    const isH=activePara&&pnumsH.includes(activePara);
+    const isH=activePara&&s.paraNum===activePara;
     const badge=s.paraNum?`<span class="sc-para-badge linked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link" style="font-size:9px"></i>段落${s.paraNum}</span>`:`<span class="sc-para-badge unlinked" onclick="openParaPicker(event,'${s.id}')"><i class="ti ti-link-off" style="font-size:9px"></i>紐付け</span>`;
     const isInt=s.sourceKind==='interview';
     const intMeta=isInt?[s.who?`<strong>${esc(s.who)}</strong>`:'',s.interviewDate?esc(s.interviewDate):'',s.place?esc(s.place):''].filter(Boolean).join(' · '):'';
@@ -1319,63 +1304,16 @@ function openParaPicker(e,sourceId){
   e.stopPropagation();const art=getCurrentArticle();if(!art)return;
   pickerSourceId=sourceId;const paras=getParas(art.text);const s=art.sources.find(x=>x.id===sourceId);
   const picker=document.getElementById('paraPicker');
-  const curNums = s ? (s.paraNums && s.paraNums.length ? s.paraNums : (s.paraNum ? [s.paraNum] : [])) : [];
-  let html=`<div class="para-picker-head">段落を選択（複数可）</div>`;
+  let html=`<div class="para-picker-head">段落を選んで紐付け</div>`;
   if(!paras.length)html+='<div style="padding:10px 12px;font-size:12px;color:var(--tx3)">原稿に段落がありません</div>';
-  else html+=paras.map(p=>{
-    const checked = curNums.includes(p.num);
-    return `<div class="para-picker-item${checked?' active':''}" onclick="toggleParaLink(${p.num})" style="display:flex;align-items:flex-start;gap:8px">
-      <span style="width:14px;height:14px;border:1.5px solid ${checked?'var(--green)':'var(--bd2)'};border-radius:3px;flex-shrink:0;margin-top:2px;background:${checked?'var(--green)':'transparent'};display:flex;align-items:center;justify-content:center">
-        ${checked?'<i class="ti ti-check" style="font-size:9px;color:#fff"></i>':''}
-      </span>
-      <div><div class="pnum">段落 ${p.num}</div><div>${esc(p.text.slice(0,50))}${p.text.length>50?'…':''}</div></div>
-    </div>`;
-  }).join('');
-  if(curNums.length)html+=`<div class="para-picker-unlink" onclick="linkToPara(null)"><i class="ti ti-link-off" style="font-size:12px"></i>全て解除</div>`;
+  else html+=paras.map(p=>`<div class="para-picker-item${s&&s.paraNum===p.num?' active':''}" onclick="linkToPara(${p.num})"><div class="pnum">段落 ${p.num}</div><div>${esc(p.text.slice(0,50))}${p.text.length>50?'…':''}</div></div>`).join('');
+  if(s&&s.paraNum)html+=`<div class="para-picker-unlink" onclick="linkToPara(null)"><i class="ti ti-link-off" style="font-size:12px"></i>紐付けを解除</div>`;
   picker.innerHTML=html;picker.style.display='block';
   const rect=e.target.getBoundingClientRect();let top=rect.bottom+6,left=rect.left;
   if(left+260>window.innerWidth)left=window.innerWidth-268;if(top+300>window.innerHeight)top=rect.top-306;
   picker.style.top=top+'px';picker.style.left=left+'px';
 }
-function toggleParaLink(num){
-  const art=getCurrentArticle();if(!art||!pickerSourceId)return;
-  const s=art.sources.find(x=>x.id===pickerSourceId);if(!s)return;
-  if(!s.paraNums) s.paraNums = s.paraNum ? [s.paraNum] : [];
-  const i = s.paraNums.indexOf(num);
-  if(i >= 0) s.paraNums.splice(i,1);
-  else s.paraNums.push(num);
-  s.paraNum = s.paraNums[0] || null;
-  save(true);
-  renderPickerInPlace();
-  renderSources();
-}
-
-function renderPickerInPlace(){
-  const art=getCurrentArticle();if(!art||!pickerSourceId)return;
-  const s=art.sources.find(x=>x.id===pickerSourceId);if(!s)return;
-  const picker=document.getElementById('paraPicker');if(!picker||picker.style.display==='none')return;
-  const paras=getParas(art.text);
-  const curNums = s.paraNums && s.paraNums.length ? s.paraNums : (s.paraNum ? [s.paraNum] : []);
-  let html=`<div class="para-picker-head">段落を選択（複数可）</div>`;
-  if(!paras.length)html+='<div style="padding:10px 12px;font-size:12px;color:var(--tx3)">原稿に段落がありません</div>';
-  else html+=paras.map(p=>{
-    const checked=curNums.includes(p.num);
-    return `<div class="para-picker-item${checked?' active':''}" onclick="toggleParaLink(${p.num})" style="display:flex;align-items:flex-start;gap:8px">
-      <span style="width:14px;height:14px;border:1.5px solid ${checked?'var(--green)':'var(--bd2)'};border-radius:3px;flex-shrink:0;margin-top:2px;background:${checked?'var(--green)':'transparent'};display:inline-flex;align-items:center;justify-content:center">
-        ${checked?'<i class="ti ti-check" style="font-size:9px;color:#fff"></i>':''}
-      </span>
-      <div><div class="pnum">段落 ${p.num}</div><div>${esc(p.text.slice(0,50))}${p.text.length>50?'…':''}</div></div>
-    </div>`;
-  }).join('');
-  if(curNums.length)html+=`<div class="para-picker-unlink" onclick="linkToPara(null)"><i class="ti ti-link-off" style="font-size:12px"></i>全て解除</div>`;
-  picker.innerHTML=html;
-}
-function linkToPara(num){
-  const art=getCurrentArticle();if(!art||!pickerSourceId)return;
-  const s=art.sources.find(x=>x.id===pickerSourceId);
-  if(s){s.paraNum=null;s.paraNums=[];}
-  save(true);closePicker();renderSources();
-}
+function linkToPara(num){const art=getCurrentArticle();if(!art||!pickerSourceId)return;const s=art.sources.find(x=>x.id===pickerSourceId);if(s)s.paraNum=num||null;save(true);closePicker();renderSources();}
 function closePicker(){document.getElementById('paraPicker').style.display='none';pickerSourceId=null;}
 document.addEventListener('click',e=>{const p=document.getElementById('paraPicker');if(p.style.display!=='none'&&!p.contains(e.target))closePicker();});
 
@@ -1540,10 +1478,67 @@ function copyQuote(id){
 }
 
 function highlightParaInEditor(paraNum){
-  if(paraNum) highlightParasInEditor([paraNum]);
-  else{const hl=document.getElementById('paraHighlight');if(hl)hl.style.display='none';}
+  const ta = document.getElementById('editor');
+  const hl = document.getElementById('paraHighlight');
+  if(!ta || !paraNum){ if(hl) hl.style.display='none'; return; }
+
+  const text = ta.value;
+  const paras = getParas(text);
+  const para = paras.find(p => p.num === paraNum);
+  if(!para){ if(hl) hl.style.display='none'; return; }
+
+  // Select the paragraph text in the textarea to make it visible
+  const allLines = text.split('\n');
+  let charPos = 0;
+  for(let i = 0; i < para.lineIdx; i++){
+    charPos += allLines[i].length + 1;
+  }
+  const paraStart = charPos;
+  const paraEnd = charPos + para.text.length;
+
+  // Focus and select
+  ta.focus();
+  ta.setSelectionRange(paraStart, paraEnd);
+
+  // Also show the green overlay box using scrollTop
+  if(hl){
+    const cs = window.getComputedStyle(ta);
+    const lineH = parseFloat(cs.lineHeight) || 32;
+    const padTop = 36;
+    const topPx = padTop + para.lineIdx * lineH;
+
+    // Scroll textarea so paragraph is in view
+    ta.scrollTop = Math.max(0, topPx - ta.clientHeight / 3);
+
+    setTimeout(() => {
+      const visTop = padTop + para.lineIdx * lineH - ta.scrollTop;
+      hl.style.display = 'block';
+      hl.style.top = visTop + 'px';
+      hl.style.height = (lineH * Math.max(1, Math.ceil(para.text.length / 30)) + 6) + 'px';
+      hl.style.left = '28px';
+      hl.style.right = '28px';
+    }, 30);
+  }
 }
 
+
+function onSourceCardClick(id){
+  const art = getCurrentArticle(); if(!art) return;
+  const s = art.sources.find(x => x.id === id); if(!s) return;
+
+  // Highlight paragraph in editor
+  if(s.paraNum){
+    activePara = s.paraNum;
+    updateFooter();
+    renderSources();
+    highlightParaInEditor(s.paraNum);
+  }
+
+  // Show quote popup next to the highlighted paragraph
+  if(s.quote){
+    showQuotePopup(s, id);
+  }
+}
 
 function showQuotePopup(s, cardId){
   const popup = document.getElementById('quotePopup');
