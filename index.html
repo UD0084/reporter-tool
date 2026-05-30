@@ -865,16 +865,19 @@ function updateLineNumbers(){
     const top = padTop + (i - 1) * lineH;
     html += `<div style="position:absolute;right:6px;top:${top}px;font-size:10px;font-weight:600;color:#1D9E75;font-family:-apple-system,sans-serif;line-height:1;user-select:none">${i}</div>`;
   }
-  // Label dots
+  // Label dots - one per paragraph at its first line only
   const art = getCurrentArticle();
   if(art && art.paraLabels){
     const paras = getParas(art.text);
     const colorMap = {check:'#E24B4A', add:'#E07B00', ok:'#1D9E75'};
+    // Track which lineIdx values belong to paragraphs we've already dotted
+    const dottedLines = new Set();
     paras.forEach(p => {
       const lbl = art.paraLabels[p.num];
-      if(lbl && colorMap[lbl]){
+      if(lbl && colorMap[lbl] && !dottedLines.has(p.lineIdx)){
+        dottedLines.add(p.lineIdx);
         const top = padTop + p.lineIdx * lineH + lineH/2;
-        html += `<div style="position:absolute;left:4px;top:${top}px;width:7px;height:7px;border-radius:50%;background:${colorMap[lbl]};transform:translateY(-50%)"></div>`;
+        html += `<div style="position:absolute;left:4px;top:${top}px;width:8px;height:8px;border-radius:50%;background:${colorMap[lbl]};transform:translateY(-50%)"></div>`;
       }
     });
   }
