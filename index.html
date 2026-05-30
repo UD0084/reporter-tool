@@ -169,6 +169,11 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
 /* stock */
 .stock-tag-btn{font-size:10px;padding:2px 8px;border-radius:99px;border:0.5px solid var(--bd2);background:transparent;cursor:pointer;color:var(--tx2);font-family:var(--font)}
 .stock-tag-btn:hover,.stock-tag-btn.active{background:var(--bbg);color:var(--btx);border-color:#B5D4F4}
+.quote-popup{position:fixed;z-index:250;background:var(--bg);border:1.5px solid var(--green);border-radius:var(--r);box-shadow:0 4px 20px rgba(0,0,0,0.15);padding:12px 14px;max-width:340px;min-width:200px;font-size:12px;line-height:1.7;color:var(--tx)}
+.quote-popup-label{font-size:10px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px}
+.quote-popup-text{font-style:italic;color:var(--tx);border-left:2px solid var(--green);padding-left:8px;line-height:1.6}
+.quote-popup-url{font-size:10px;color:var(--tx3);margin-top:6px;word-break:break-all}
+.quote-popup-url a{color:var(--blue);text-decoration:none}
 .src-tag-chip{font-size:10px;padding:1px 7px;border-radius:99px;background:var(--pbg);color:var(--ptx);display:inline-flex;align-items:center;gap:3px}
 .src-tag-filter-btn{font-size:10px;padding:2px 8px;border-radius:99px;border:0.5px solid var(--bd2);background:transparent;cursor:pointer;color:var(--tx2);font-family:var(--font)}
 .src-tag-filter-btn:hover{background:var(--pbg);color:var(--ptx)}
@@ -409,7 +414,7 @@ let dragSrcId = null;
 
 const editor=document.getElementById('editor');
 editor.addEventListener('input',()=>{autoSave();document.getElementById('paraHighlight').style.display='none';});
-editor.addEventListener('click',()=>{const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}document.getElementById('paraHighlight').style.display='none';});
+editor.addEventListener('click',()=>{const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}document.getElementById('paraHighlight').style.display='none';closeQuotePopup();});
 editor.addEventListener('keyup',e=>{
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Home','End','Enter'].includes(e.key)){
     const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}
@@ -478,7 +483,7 @@ window.addEventListener('storage',e=>{
 
 
 editor.addEventListener('input',()=>{autoSave();document.getElementById('paraHighlight').style.display='none';});
-editor.addEventListener('click',()=>{const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}document.getElementById('paraHighlight').style.display='none';});
+editor.addEventListener('click',()=>{const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}document.getElementById('paraHighlight').style.display='none';closeQuotePopup();});
 editor.addEventListener('keyup',e=>{
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Home','End','Enter'].includes(e.key)){
     const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}
@@ -826,7 +831,7 @@ function getParaAtCursorCol(colTa){
   return paraCount||null;
 }
 editor.addEventListener('input',()=>{autoSave();document.getElementById('paraHighlight').style.display='none';});
-editor.addEventListener('click',()=>{const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}document.getElementById('paraHighlight').style.display='none';});
+editor.addEventListener('click',()=>{const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}document.getElementById('paraHighlight').style.display='none';closeQuotePopup();});
 editor.addEventListener('keyup',e=>{
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Home','End','Enter'].includes(e.key)){
     const p=getParaAtCursor();if(p!==activePara){activePara=p;updateFooter();renderSources();}
@@ -1101,15 +1106,77 @@ function highlightParaInEditor(paraNum){
 
 
 function onSourceCardClick(id){
-  const art=getCurrentArticle();if(!art)return;
-  const s=art.sources.find(x=>x.id===id);if(!s)return;
+  const art = getCurrentArticle(); if(!art) return;
+  const s = art.sources.find(x => x.id === id); if(!s) return;
+
+  // Highlight paragraph in editor
   if(s.paraNum){
-    activePara=s.paraNum;
+    activePara = s.paraNum;
     updateFooter();
     renderSources();
     highlightParaInEditor(s.paraNum);
   }
+
+  // Show quote popup next to the highlighted paragraph
+  if(s.quote){
+    showQuotePopup(s, id);
+  }
 }
+
+function showQuotePopup(s, cardId){
+  const popup = document.getElementById('quotePopup');
+  if(!popup) return;
+
+  // Build content
+  popup.innerHTML = `
+    <div class="quote-popup-label"><i class="ti ti-quote" style="font-size:11px"></i> 引用元原文</div>
+    <div class="quote-popup-text">${esc(s.quote)}</div>
+    ${s.translation ? `<div style="font-size:11px;color:var(--tx2);margin-top:6px;padding-left:10px">和訳: ${esc(s.translation)}</div>` : ''}
+    ${s.url ? `<div class="quote-popup-url"><a href="${esc(s.url)}" target="_blank">${esc(s.url)}</a></div>` : ''}
+    <div style="text-align:right;margin-top:6px"><button class="sbtn" onclick="closeQuotePopup()" style="font-size:10px">閉じる ✕</button></div>
+  `;
+
+  // Position: next to the highlighted paragraph area
+  const hl = document.getElementById('paraHighlight');
+  const inner = document.getElementById('editorInner');
+  const sourcePane = document.querySelector('.source-pane');
+
+  if(hl && hl.style.display !== 'none' && inner){
+    // Position below the highlight
+    const hlRect = hl.getBoundingClientRect();
+    const innerRect = inner.getBoundingClientRect();
+
+    let top = hlRect.bottom + 8;
+    let left = innerRect.left + 40; // align with text
+
+    // Keep within viewport
+    const popupW = 340;
+    const popupH = 200;
+    if(left + popupW > window.innerWidth - 20) left = window.innerWidth - popupW - 20;
+    if(top + popupH > window.innerHeight - 20) top = hlRect.top - popupH - 8;
+    if(top < 10) top = 10;
+
+    popup.style.top = top + 'px';
+    popup.style.left = left + 'px';
+  } else {
+    // Fallback: center of editor area
+    const editorPane = document.querySelector('.editor-pane');
+    if(editorPane){
+      const rect = editorPane.getBoundingClientRect();
+      popup.style.top = (rect.top + rect.height / 3) + 'px';
+      popup.style.left = (rect.left + 40) + 'px';
+    }
+  }
+
+  popup.style.display = 'block';
+}
+
+function closeQuotePopup(){
+  const popup = document.getElementById('quotePopup');
+  if(popup) popup.style.display = 'none';
+}
+
+
 function moveSourceToStock(id){
   const art=getCurrentArticle();if(!art)return;
   const s=art.sources.find(x=>x.id===id);if(!s)return;
@@ -1344,7 +1411,7 @@ function closeModal(id){document.getElementById(id).classList.add('hidden');}
 document.querySelectorAll('.modal-bg').forEach(bg=>{bg.addEventListener('click',function(e){if(e.target===this)this.classList.add('hidden');});});
 document.addEventListener('keydown',e=>{
   if((e.metaKey||e.ctrlKey)&&e.key==='s'){e.preventDefault();saveArticle();}
-  if(e.key==='Escape')closePicker();
+  if(e.key==='Escape'){closePicker();closeQuotePopup();}
 });
 
 load();
@@ -1358,5 +1425,6 @@ load();
   }
 })();
 </script>
+<div id="quotePopup" style="display:none" class="quote-popup"></div>
 </body>
 </html>
