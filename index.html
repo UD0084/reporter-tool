@@ -309,6 +309,12 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
           <div id="stab-unused" class="src-tab" onclick="switchStockTab('unused')"><i class="ti ti-bookmark" style="font-size:12px"></i> ストック</div>
         </div>
       </div>
+      <div style="padding:8px 10px 0;flex-shrink:0">
+        <div style="position:relative">
+          <i class="ti ti-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--tx3)"></i>
+          <input id="stockSearchInput" class="fi" placeholder="ストック・引用元を検索..." style="padding:5px 10px 5px 28px;font-size:12px" oninput="onStockSearchInput(this.value)">
+        </div>
+      </div>
       <div style="padding:6px 10px;border-bottom:0.5px solid var(--bd);flex-shrink:0;display:flex;gap:4px;flex-wrap:wrap;align-items:center">
         <span style="font-size:10px;color:var(--tx3)">タグ:</span>
         <div id="stockTagBar" style="display:flex;gap:3px;flex-wrap:wrap;flex:1"></div>
@@ -420,7 +426,12 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
 const SK='reporter_v4'; // Keep v4 to preserve existing data
 let state={articles:[],stocks:[],currentId:null};
 let activePara=null,currentColWidth=40,pickerSourceId=null;
-let showingTrash=false,stockPaneVisible=false,stockTab='all',stockTagFilter=null,artFilter='all';
+let showingTrash=false,stockPaneVisible=false,stockTab='all',stockTagFilter=null,artFilter='all',stockSearchQuery='';
+
+function onStockSearchInput(val){
+  stockSearchQuery=(val||'').trim().toLowerCase();
+  renderStockPane();
+}
 
 // ── persistence ──
 function exportData(){
@@ -1637,7 +1648,11 @@ function renderStockPane(){
   const allTags=[...new Set(allItems.flatMap(s=>s.tags||[]))];
   const tagBar=document.getElementById('stockTagBar');
   tagBar.innerHTML=[`<button class="stock-tag-btn${!stockTagFilter?' active':''}" onclick="setStockTag(null)">すべて</button>`,...allTags.map(t=>`<button class="stock-tag-btn${stockTagFilter===t?' active':''}" onclick="setStockTag('${esc(t)}')">${esc(t)}</button>`)].join('');
-  const filtered=stockTagFilter?allItems.filter(s=>(s.tags||[]).includes(stockTagFilter)):allItems;
+  let filtered=stockTagFilter?allItems.filter(s=>(s.tags||[]).includes(stockTagFilter)):allItems;
+  if(stockSearchQuery) filtered=filtered.filter(s=>{
+    const hay=[s.quote,s.note,s.url,s._artTitle,(s.tags||[]).join(' ')].filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(stockSearchQuery);
+  });
   updateStockCount();
   const body=document.getElementById('stockBody');
   if(!filtered.length){body.innerHTML=`<div class="source-empty">${stockTab==='unused'?'ストックは空です':'引用元がありません'}</div>`;return;}
