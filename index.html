@@ -301,12 +301,12 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
     <div class="stock-pane" id="stockPane">
       <div style="padding:9px 14px 0;border-bottom:0.5px solid var(--bd);flex-shrink:0">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <span style="font-size:12px;font-weight:500;color:var(--tx2)">ストック・引用元一覧</span>
+          <span style="font-size:12px;font-weight:500;color:var(--tx2)">引用元・ストック一覧</span>
           <button class="sbtn" onclick="toggleStockPane()"><i class="ti ti-x" style="font-size:12px"></i></button>
         </div>
         <div style="display:flex;gap:0;border-bottom:0.5px solid var(--bd2)">
           <div id="stab-all" class="src-tab active" onclick="switchStockTab('all')"><i class="ti ti-database" style="font-size:12px"></i> 全て</div>
-          <div id="stab-unused" class="src-tab" onclick="switchStockTab('unused')"><i class="ti ti-bookmark" style="font-size:12px"></i> 未使用</div>
+          <div id="stab-unused" class="src-tab" onclick="switchStockTab('unused')"><i class="ti ti-bookmark" style="font-size:12px"></i> ストック</div>
         </div>
       </div>
       <div style="padding:6px 10px;border-bottom:0.5px solid var(--bd);flex-shrink:0;display:flex;gap:4px;flex-wrap:wrap;align-items:center">
@@ -331,6 +331,12 @@ textarea.fi{resize:vertical;min-height:56px;line-height:1.5}
       <div class="source-head">
         <span class="source-head-title" id="sourceHeadTitle">引用元一覧</span>
         <button class="source-add-btn" onclick="openAddSourceModal(null)"><i class="ti ti-plus" style="font-size:12px"></i>追加</button>
+      </div>
+      <div style="padding:6px 12px 0;flex-shrink:0">
+        <div style="position:relative">
+          <i class="ti ti-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--tx3)"></i>
+          <input id="srcSearchInput" class="fi" placeholder="引用元を検索..." style="padding:5px 10px 5px 28px;font-size:12px" oninput="onSrcSearchInput(this.value)">
+        </div>
       </div>
       <div id="srcTagFilterBar" style="display:none;padding:6px 12px;border-bottom:0.5px solid var(--bd);flex-shrink:0;display:flex;gap:3px;flex-wrap:wrap;align-items:center">
         <span style="font-size:10px;color:var(--tx3);flex-shrink:0">タグ絞込:</span>
@@ -496,7 +502,12 @@ editor.addEventListener('keyup',e=>{
 document.addEventListener('click',e=>{const p=document.getElementById('paraPicker');if(p.style.display!=='none'&&!p.contains(e.target))closePicker();});
 
 // ── add/edit source ──
-let editingSourceId=null,currentSrcTab='web',srcTagFilter=null;
+let editingSourceId=null,currentSrcTab='web',srcTagFilter=null,srcSearchQuery='';
+
+function onSrcSearchInput(val){
+  srcSearchQuery = (val||'').trim().toLowerCase();
+  renderSources();
+}
 
 
 
@@ -518,7 +529,11 @@ let editingStockId=null;
 
 window.addEventListener('storage',e=>{
   if(e.key==='reporter_pending_clips'&&e.newValue){
-    try{window._pendingClips=JSON.parse(e.newValue);localStorage.removeItem('reporter_pending_clips');renderSources();}catch(err){}
+    try{
+      const clips=JSON.parse(e.newValue);
+      localStorage.removeItem('reporter_pending_clips');
+      if(clips&&clips.length) autoImportToStock(clips);
+    }catch(err){}
   }
 });
 
@@ -585,7 +600,11 @@ document.addEventListener('click',e=>{const p=document.getElementById('paraPicke
 
 window.addEventListener('storage',e=>{
   if(e.key==='reporter_pending_clips'&&e.newValue){
-    try{window._pendingClips=JSON.parse(e.newValue);localStorage.removeItem('reporter_pending_clips');renderSources();}catch(err){}
+    try{
+      const clips=JSON.parse(e.newValue);
+      localStorage.removeItem('reporter_pending_clips');
+      if(clips&&clips.length) autoImportToStock(clips);
+    }catch(err){}
   }
 });
 
@@ -1257,16 +1276,18 @@ function setReadOnlyMode(on){
 function renderSources(){
   const art=getCurrentArticle();const body=document.getElementById('sourceBody');const title=document.getElementById('sourceHeadTitle');
   if(!art){body.innerHTML='<div class="source-empty">案件を選択してください</div>';return;}
-  const pending=window._pendingClips&&window._pendingClips.length;
   const unusedCount = art.sources.filter(s=>!s.paraNum).length;
-  const unusedLabel = unusedCount ? ` / 未使用${unusedCount}件` : '';
+  const unusedLabel = unusedCount ? ` / 未紐付け${unusedCount}件` : '';
   title.textContent=activePara?`段落${activePara}の引用元 / 全${art.sources.length}件`:`引用元一覧 (${art.sources.length}件${unusedLabel})`;
   let html='';
-  if(pending)html+=`<div class="pending-banner"><p><i class="ti ti-clipboard-check"></i> <strong>${window._pendingClips.length}件</strong> 届いています</p><button onclick="importPending()">振り分け</button></div>`;
-  if(!art.sources.length&&!pending){html+='<div class="source-empty"><i class="ti ti-link-off" style="font-size:24px;display:block;margin-bottom:8px"></i>引用元がまだありません</div>';body.innerHTML=html;renderSrcTagFilters();return;}
+  if(!art.sources.length){html+='<div class="source-empty"><i class="ti ti-link-off" style="font-size:24px;display:block;margin-bottom:8px"></i>引用元がまだありません</div>';body.innerHTML=html;renderSrcTagFilters();return;}
   renderSrcTagFilters();
   let sourcesToShow=[...art.sources];
   if(srcTagFilter) sourcesToShow=sourcesToShow.filter(s=>(s.tags||[]).includes(srcTagFilter));
+  if(srcSearchQuery) sourcesToShow=sourcesToShow.filter(s=>{
+    const hay=[s.quote,s.translation,s.note,s.url,s.who,(s.tags||[]).join(' ')].filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(srcSearchQuery);
+  });
   const sorted=sourcesToShow.sort((a,b)=>{const ap=a.paraNum||999,bp=b.paraNum||999;return ap-bp;});
   html+=sorted.map(s=>{
     const isH=activePara&&s.paraNum===activePara;
@@ -1619,10 +1640,10 @@ function renderStockPane(){
   const filtered=stockTagFilter?allItems.filter(s=>(s.tags||[]).includes(stockTagFilter)):allItems;
   updateStockCount();
   const body=document.getElementById('stockBody');
-  if(!filtered.length){body.innerHTML=`<div class="source-empty">${stockTab==='unused'?'未使用のストックがありません':'引用元がありません'}</div>`;return;}
+  if(!filtered.length){body.innerHTML=`<div class="source-empty">${stockTab==='unused'?'ストックは空です':'引用元がありません'}</div>`;return;}
   body.innerHTML=filtered.map(item=>{
     const isStock=item._kind==='stock';
-    const artLabel=item._artTitle?`<span style="font-size:9px;background:var(--gbg);color:var(--gtx);padding:1px 5px;border-radius:99px">${esc(item._artTitle)}</span>`:`<span style="font-size:9px;background:var(--bg2);color:var(--tx3);padding:1px 5px;border-radius:99px;border:0.5px dashed var(--bd2)">未使用</span>`;
+    const artLabel=item._artTitle?`<span style="font-size:9px;background:var(--gbg);color:var(--gtx);padding:1px 5px;border-radius:99px">${esc(item._artTitle)}</span>`:`<span style="font-size:9px;background:var(--bg2);color:var(--tx3);padding:1px 5px;border-radius:99px;border:0.5px dashed var(--bd2)">ストック</span>`;
     return `<div class="sc">
       <div class="sc-top"><i class="ti ti-grip-vertical" style="font-size:12px;color:var(--tx3);cursor:grab;flex-shrink:0;margin-right:4px"></i><div style="flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:3px"><span class="stag ${tagClass(item.type||'その他')}">${esc(item.type||'その他')}</span>${artLabel}${(item.tags||[]).map(t=>`<span style="font-size:9px;background:var(--bbg);color:var(--btx);padding:1px 5px;border-radius:99px">${esc(t)}</span>`).join('')}</div>
       <button class="sbtn del" onclick="${isStock?`deleteStock('${item.id}')`:`deleteSourceFromStock('${item._artId}','${item.id}')`}"><i class="ti ti-trash" style="font-size:10px"></i></button></div>
@@ -1748,7 +1769,24 @@ function deleteStock(id){
 
 // ── import pending clips ──
 function checkPending(){
-  try{const raw=localStorage.getItem('reporter_pending_clips');if(!raw)return;window._pendingClips=JSON.parse(raw);localStorage.removeItem('reporter_pending_clips');renderSources();}catch(e){}
+  try{
+    const raw=localStorage.getItem('reporter_pending_clips');if(!raw)return;
+    const clips=JSON.parse(raw);
+    localStorage.removeItem('reporter_pending_clips');
+    if(clips&&clips.length) autoImportToStock(clips);
+  }catch(e){}
+}
+
+function autoImportToStock(clips){
+  if(!state.stocks)state.stocks=[];
+  clips.forEach(c=>{state.stocks.unshift({id:uid(),url:c.url||'',quote:c.quote||'',note:c.title||'',tags:[],savedAt:new Date().toLocaleDateString('ja'),type:c.sourceType||'その他'});});
+  save(true);updateStockCount();
+  if(stockPaneVisible)renderStockPane();
+  const flash=document.createElement('div');
+  flash.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:10px 20px;border-radius:var(--r);font-size:13px;z-index:500;box-shadow:var(--sh-lg)';
+  flash.innerHTML='<i class="ti ti-bookmark"></i> '+clips.length+'件をストックに追加しました';
+  document.body.appendChild(flash);
+  setTimeout(()=>flash.remove(),3000);
 }
 function checkPendingForStock(clips){
   if(!state.stocks)state.stocks=[];
@@ -1784,7 +1822,11 @@ function importToArticle(artId){
 
 window.addEventListener('storage',e=>{
   if(e.key==='reporter_pending_clips'&&e.newValue){
-    try{window._pendingClips=JSON.parse(e.newValue);localStorage.removeItem('reporter_pending_clips');renderSources();}catch(err){}
+    try{
+      const clips=JSON.parse(e.newValue);
+      localStorage.removeItem('reporter_pending_clips');
+      if(clips&&clips.length) autoImportToStock(clips);
+    }catch(err){}
   }
 });
 
