@@ -513,7 +513,7 @@ editor.addEventListener('keyup',e=>{
 document.addEventListener('click',e=>{const p=document.getElementById('paraPicker');if(p.style.display!=='none'&&!p.contains(e.target))closePicker();});
 
 // ── add/edit source ──
-let editingSourceId=null,currentSrcTab='web',srcTagFilter=null,srcSearchQuery='';
+let editingSourceId=null,editingSourceArtId=null,currentSrcTab='web',srcTagFilter=null,srcSearchQuery='';
 
 function onSrcSearchInput(val){
   srcSearchQuery = (val||'').trim().toLowerCase();
@@ -1404,8 +1404,11 @@ function switchSrcTab(tab){
   document.getElementById('srcForm-web').style.display=tab==='web'?'':'none';
   document.getElementById('srcForm-interview').style.display=tab==='interview'?'':'none';
 }
-function openAddSourceModal(sourceId){
-  editingSourceId=sourceId;const art=getCurrentArticle();
+function openAddSourceModal(sourceId, artId){
+  editingSourceId=sourceId;
+  editingSourceArtId=artId||null;
+  const art=editingSourceArtId?(state.articles||[]).find(a=>a.id===editingSourceArtId):getCurrentArticle();
+  if(!art)return;
   if(sourceId){
     const s=art.sources.find(x=>x.id===sourceId);if(!s)return;
     document.getElementById('addSourceTitle').textContent='引用元を編集';
@@ -1434,7 +1437,8 @@ function openAddSourceModal(sourceId){
   showSrcTagSuggestions();
 }
 function addSource(){
-  const art=getCurrentArticle();if(!art)return;
+  const art=editingSourceArtId?(state.articles||[]).find(a=>a.id===editingSourceArtId):getCurrentArticle();
+  if(!art)return;
   const existing=editingSourceId?art.sources.find(s=>s.id===editingSourceId)?.paraNum||null:activePara||null;
   let src;
   if(currentSrcTab==='interview'){
@@ -1450,7 +1454,7 @@ function addSource(){
   }
   if(editingSourceId){const idx=art.sources.findIndex(s=>s.id===editingSourceId);if(idx>=0)art.sources[idx]=src;}
   else art.sources.push(src);
-  save(true);renderSources();renderArtList();closeModal('addSourceModal');
+  save(true);renderSources();renderArtList();renderStockPane();editingSourceArtId=null;closeModal('addSourceModal');
 }
 function deleteSource(e,id){
   e.stopPropagation();const art=getCurrentArticle();if(!art)return;
@@ -1667,7 +1671,7 @@ function renderStockPane(){
       ${item.url?`<div class="sc-url"><a href="${esc(item.url)}" target="_blank">${esc(item.url)}</a></div>`:''}
       <div class="sc-actions">
         ${isStock?`<button class="sbtn" onclick="openMoveToArticlePicker('${item.id}','stock','','copy')"><i class="ti ti-copy" style="font-size:10px"></i>コピー</button><button class="sbtn" onclick="openMoveToArticlePicker('${item.id}','stock','','move')"><i class="ti ti-transfer" style="font-size:10px"></i>移動</button><button class="sbtn" onclick="openEditStock('${item.id}')"><i class="ti ti-edit" style="font-size:10px"></i>編集</button>`:''}
-        ${!isStock?`<button class="sbtn" onclick="openMoveToArticlePicker('${item.id}','source','${item._artId}')"><i class="ti ti-copy" style="font-size:10px"></i>他の案件にコピー</button><button class="sbtn" onclick="moveSourceToStockById('${item._artId}','${item.id}')"><i class="ti ti-bookmark" style="font-size:10px"></i>ストックへ</button>`:''}
+        ${!isStock?`<button class="sbtn" onclick="openAddSourceModal('${item.id}','${item._artId}')"><i class="ti ti-edit" style="font-size:10px"></i>編集</button><button class="sbtn" onclick="openMoveToArticlePicker('${item.id}','source','${item._artId}')"><i class="ti ti-copy" style="font-size:10px"></i>他の案件にコピー</button><button class="sbtn" onclick="moveSourceToStockById('${item._artId}','${item.id}')"><i class="ti ti-bookmark" style="font-size:10px"></i>ストックへ</button>`:''}
       </div>
     </div>`;
   }).join('');
